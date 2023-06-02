@@ -1,0 +1,166 @@
+{
+	"template": {
+		"info": {
+			"comment": "",
+			"requiredControlSofwareVersion": "",
+			"systemType": "huddle",
+			"lastModifiedDate": "2018-07-09T20:00:47.873Z",
+			"lastUid": 23,
+			"processorType": "rmc4"
+		},
+		"devices": [
+			{
+				"key": "processor",
+				"group": "processor",
+				"uid": 0,
+				"supportsCompliance": true,
+				"type": "rmc4",
+				"properties": {},
+				"name": "rmc4"
+			},
+			{
+				"key": "dsp1",
+				"name": "ClearOne Converge Pro 2",
+				"type": "convergepro2dsp",
+				"group": "plugin",
+				"properties": {
+					"control": {
+						"method": "tcpip",
+						"controlPortDevKey": "processor",
+						"controlPortNumber": 1,
+						"comParams": {
+							"protocol": "RS232",
+							"baudRate": 57600,
+							"dataBits": 8,
+							"stopBits": 1,
+							"parity": "None",
+							"hardwareHandshake": "None",
+							"softwareHandshake": "None"
+						},
+						"tcpSshProperties": {
+							"address": "10.0.0.194",
+							"port": 23,
+							"username": "admin",
+							"password": "password",
+							"autoReconnect": true,
+							"autoReconnectIntervalMs": 10000
+						}
+					},
+					"communicationMonitor": {
+						"pollInterval": 60000,
+						"timeToWarning": 180000,
+						"timeToError": 300000
+					},
+					"boxName": "DSP1",
+					"levelControlBlocks": {
+						"fader1": {                            
+							"label": "Room",
+							"endpointType": "PROC",
+							"endpointNumber": "101",
+							"blockNumber": "LEVEL",
+							"disabled": false,
+                            "hasLevel": true,
+                            "hasMute": true,
+                            "isMic": false
+                        },
+						"fader2": {                            
+							"label": "Program",
+							"endpointType": "PROC",
+							"endpointNumber": "102",
+							"blockNumber": "LEVEL",
+							"disabled": false,
+                            "hasLevel": true,
+                            "hasMute": true,
+                            "isMic": false
+                        },
+						"fader3": {                            
+							"label": "Mic 1",
+							"endpointType": "MIC",
+							"endpointNumber": "103",
+							"blockNumber": "LEVEL",
+							"disabled": false,
+                            "hasLevel": true,
+                            "hasMute": true,
+                            "isMic": false
+                        },
+						"fader4": {                            
+							"label": "VoIP Call",
+							"endpointType": "VOIP_RX",
+							"endpointNumber": "201",
+							"blockNumber": "LEVEL",
+							"disabled": false,
+                            "hasLevel": true,
+                            "hasMute": true,
+                            "isMic": false
+                        },
+						"fader5": {                            
+							"label": "Phone Call",
+							"endpointType": "TELCO_RX",
+							"endpointNumber": "202",
+							"blockNumber": "LEVEL",
+							"disabled": false,
+                            "hasLevel": true,
+                            "hasMute": true,
+                            "isMic": false
+                        }
+					},
+					"presets": {
+						"preset1": {							
+							"label": "System On",
+							"preset": "1",
+							"endpointType": "",
+							"endpointNumber": "",							
+							"blockNumber": ""
+						},
+						"preset2": {
+							"label": "System Off",
+							"preset": "2"
+						},
+						"preset3": {
+							"label": "Default Levels",
+							"preset": "3"
+						}
+					},
+					"dialers": {
+						"dialer1": {
+							"label": "Dialer 1",
+							"endpointType": "VOIP_TX",
+							"endpointNumber": "301",
+							"blockNumber": "DIALER",
+							"clearOnHangup": true
+						}
+					}
+				}
+			},
+			{
+				"key": "dsp1-bridge",
+				"uid": 11,
+				"name": "DSP Bridge",
+				"group": "api",
+				"type": "eiscApiAdvanced",
+				"properties": {
+					"control": {
+						"method": "ipidTcp",
+						"tcpSshProperties": {
+							"address": "127.0.0.2",
+							"port": 0
+						},
+						"ipid": "B1"
+					},
+					"devices": [
+						{
+							"deviceKey": "dsp1",
+							"joinStart": 1
+						}
+					]
+				}
+			}
+		],
+		"rooms": [],
+		"sourceLists": {},
+		"tieLines": []
+	},
+	"system": {},
+	"template_url": "",
+	"system_url": ""
+}
