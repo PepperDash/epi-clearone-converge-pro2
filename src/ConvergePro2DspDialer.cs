@@ -7,8 +7,13 @@ using PepperDash.Essentials.Devices.Common.Codec;
 
 namespace ConvergePro2DspPlugin
 {
-	public class ConvergePro2DspDialer : IHasDialer
+	public class ConvergePro2DspDialer : IHasDialer, IKeyed
 	{
+		/// <summary>
+		/// Dialer Key
+		/// </summary>
+		public string Key { get; protected set; }
+
 		/// <summary>
 		/// Parent DSP
 		/// </summary>
@@ -18,6 +23,11 @@ namespace ConvergePro2DspPlugin
 		/// Dialer config
 		/// </summary>
 		public ConvergePro2DspDialerConfig Config { get; private set; }
+
+		/// <summary>
+		/// Tracks if the dialer is VoIP or TELCO
+		/// </summary>
+		public bool IsVoipDialer { get; private set; }
 
 		/// <summary>
 		/// Tracks in call state
@@ -143,10 +153,12 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		/// <param name="config">configuration object</param>
 		/// <param name="parent">parent dsp instance</param>
-		public ConvergePro2DspDialer(ConvergePro2DspDialerConfig config, ConvergePro2Dsp parent)
+		public ConvergePro2DspDialer(string key, ConvergePro2DspDialerConfig config, ConvergePro2Dsp parent)
 		{
 			Parent = parent;
 			Config = config;
+
+			IsVoipDialer = Config.EndpointType.ToLower().Contains("voip");
 
 			IncomingCallFeedback = new BoolFeedback(() => IncomingCall);
 			DialStringFeedback = new StringFeedback(() => DialString);
@@ -154,6 +166,15 @@ namespace ConvergePro2DspPlugin
 			AutoAnswerFeedback = new BoolFeedback(() => AutoAnswerState);
 			DoNotDisturbFeedback = new BoolFeedback(() => DoNotDisturbState);
 			CallerIdNumberFeedback = new StringFeedback(() => CallerIdNumber);
+
+			Initialize(key, config);
+		}
+
+		public void Initialize(string key, ConvergePro2DspDialerConfig config)
+		{
+			Key = string.Format("{0}-{1}", Parent.Key, key);
+
+			DeviceManager.AddDevice(this);
 		}
 
 		/// <summary>
@@ -171,6 +192,66 @@ namespace ConvergePro2DspPlugin
 			var handler = CallStatusChange;
 			if (handler == null) return;
 			CallStatusChange(this, args);
+		}
+
+		/// <summary>
+		/// Parses the response from the DSP. Command is "MUTE, GAIN, MINMAX, erc. Values[] is the returned values after the channel and group.
+		/// </summary>
+		/// <example>
+		/// {CMD_TYPE} {ENDPOINT_TYPE (EPT)} {ENDPOINT_NUMBER (EPN)} {BLOCK_NUMBER (BN)} {PARAMETER_NAME (PN)} [{VALUE}]
+		/// "EP MIC 103 LEVEL MUTE 0"
+		/// "EP PROC 201 LEVEL GAIN -5"
+		/// </example>
+		/// <param name="command"></param>
+		/// <param name="values"></param>
+		public void ParseResponse(string command, string[] values)
+		{
+			Debug.Console(1, this, "Parsing response {0} values: '{1}'", command, string.Join(" ", values));
+			switch (command)
+			{
+				case "AUTO_ANSWER_RINGS":
+				{
+					break;
+				}
+				case "AUTO_DISCONNECT_MODE":
+				{
+					break;
+				}
+				case "KEY_CALL":
+				{
+					break;
+				}
+				case "KEY_HOOK_FLASH":
+				{
+					break;
+				}
+				case "KEY_REDIAL":
+				{
+					break;
+				}
+				case "INCOMING_CALL":
+				{
+					break;
+				}
+				case "CALLER_ID":
+				{
+					break;
+				}
+				case "HOOK":
+				{
+					OffHook = values[0] == "1";
+					break;
+				}
+				case "RING":
+				{
+					break;
+				}
+				default:
+				{
+					Debug.Console(2, this, "ResponseRecieved: unhandled response '{0} {1}'", command, values.ToString());
+					break;
+				}
+			}
 		}
 
 		/// <summary>
@@ -487,6 +568,6 @@ namespace ConvergePro2DspPlugin
 			Pound,
 			Clear,
 			Backspace
-		}
+		}		
 	}
 }

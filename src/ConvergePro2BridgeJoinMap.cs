@@ -9,7 +9,7 @@ namespace ConvergePro2DspPlugin
 	{
 		#region Digital
 
-		[JoinName("IsOnline")]
+		[JoinName("IsOnlineFeedback")]
 		public JoinDataComplete IsOnline = new JoinDataComplete(
 			new JoinData()
 			{
@@ -124,6 +124,40 @@ namespace ConvergePro2DspPlugin
 		#endregion
 
 		#region Analog
+
+		/// <summary>
+		/// Plugin device communication monitor status
+		/// </summary>
+		[JoinName("CommunicationMonitorStatus")]
+		public JoinDataComplete CommunicationMonitorStatus = new JoinDataComplete(
+			new JoinData
+			{
+				JoinNumber = 1,
+				JoinSpan = 1
+			},
+			new JoinMetadata
+			{
+				Description = "Device communication monitor status feedback",
+				JoinCapabilities = eJoinCapabilities.ToSIMPL,
+				JoinType = eJoinType.Analog
+			});
+
+		/// <summary>
+		/// Plugin device communication socket status
+		/// </summary>
+		[JoinName("SocketStatus")]
+		public JoinDataComplete SocketStatus = new JoinDataComplete(
+			new JoinData
+			{
+				JoinNumber = 2,
+				JoinSpan = 1
+			},
+			new JoinMetadata
+			{
+				Description = "Device socket status feedback",
+				JoinCapabilities = eJoinCapabilities.ToSIMPL,
+				JoinType = eJoinType.Analog
+			});
 
 		[JoinName("ChannelVolume")]
 		public JoinDataComplete ChannelVolume = new JoinDataComplete(

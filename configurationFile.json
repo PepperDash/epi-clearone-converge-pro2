@@ -124,10 +124,10 @@
 					"dialers": {
 						"dialer1": {
 							"label": "Dialer 1",
-							"endpointType": "",
-							"endpointNumber": "",							
+							"endpointType": "TELCO_RX",
+							"endpointNumber": "101",
 							"blockNumber": "",
-							"channelName": "TELCO_RX",							
+							"channelName": "DIALER1",							
 							"clearOnHangup": true
 						}
 					}
@@ -146,7 +146,7 @@
 							"address": "127.0.0.2",
 							"port": 0
 						},
-						"ipid": "B1"
+						"ipid": "B0"
 					},
 					"devices": [
 						{

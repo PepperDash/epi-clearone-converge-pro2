@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
+using PepperDash.Essentials.Core.Queues;
 using PepperDash.Essentials.Devices.Common.DSP;
 
 namespace ConvergePro2DspPlugin
@@ -20,14 +20,20 @@ namespace ConvergePro2DspPlugin
 	public class ConvergePro2Dsp : EssentialsBridgeableDevice
 	{
 		private readonly IBasicCommunication _comm;
-		private readonly ConvergePro2DspConfig _config;
-
-		private uint _heartbeatTracker = 0;
-		private bool _initializeComplete = false;
-
-		public CommunicationGather PortGather { get; private set; }
+		public CommunicationGather CommGather { get; private set; }
 		public readonly GenericCommunicationMonitor CommMonitor;
-		public BoolFeedback IsOnline { get { return CommMonitor.IsOnlineFeedback; } }
+		private readonly GenericQueue _commRxQueue;
+
+		private const string CommCommandDelimter = "\x0D";
+		private const string CommGatherDelimiter = "\x0A";
+
+		public BoolFeedback IsOnlineFeedback { get { return CommMonitor.IsOnlineFeedback; } }
+		public IntFeedback CommMonitorFeedback { get; private set; }
+		public IntFeedback SocketStatusFeedback { get; private set; }
+
+		private readonly ConvergePro2DspConfig _config;
+		private uint _heartbeatTracker;
+		private bool _initializeComplete;
 
 		public string BoxName { get; set; }
 		public Dictionary<string, ConvergePro2DspLevelControl> LevelControlPoints { get; private set; }
@@ -56,9 +62,9 @@ namespace ConvergePro2DspPlugin
 				BoxName = _config.Boxname;
 
 				_comm = comm;
-
-				PortGather = new CommunicationGather(_comm, "\x0a");
-				PortGather.LineReceived += ResponseReceived;
+				_commRxQueue = new GenericQueue(key + "-queue");
+				CommGather = new CommunicationGather(_comm, CommGatherDelimiter);
+				CommGather.LineReceived += OnLineRecieved;
 
 				var pollTime = 30000;
 				var timeToWarning = 180000;
@@ -72,7 +78,14 @@ namespace ConvergePro2DspPlugin
 				}
 
 				CommMonitor = new GenericCommunicationMonitor(this, _comm, pollTime, timeToWarning, timeToError, HeartbeatPoll);
-				CommMonitor.StatusChange += ConnectionChange;
+				CommMonitor.StatusChange += OnCommMonitorStatusChange;
+
+				var socket = _comm as ISocketStatus;
+				if (socket != null)
+				{
+					socket.ConnectionChange += OnSocketConnectionChange;
+					SocketStatusFeedback = new IntFeedback(() => (int)socket.ClientStatus);
+				}
 
 				LevelControlPoints = new Dictionary<string, ConvergePro2DspLevelControl>();
 				Dialers = new Dictionary<string, ConvergePro2DspDialer>();
@@ -104,13 +117,18 @@ namespace ConvergePro2DspPlugin
 			base.Initialize();
 		}
 
-		private void ConnectionChange(object sender, MonitorStatusChangeEventArgs args)
+		private void OnCommMonitorStatusChange(object sender, MonitorStatusChangeEventArgs args)
 		{
 			Debug.Console(_debugVerbose, this, "Communication monitor state: {0}", args.Status);
 			if (args.Status == MonitorStatus.IsOk && _initializeComplete)
 			{
 				InitializeDspObjects();
 			}
+		}
+
+		private void OnSocketConnectionChange(object sender, GenericSocketStatusChageEventArgs args)
+		{
+			Debug.Console(_debugVerbose, this, "Socket state: {0}, IsConnected: {1}", args.Client.ClientStatus, args.Client.IsConnected ? "true" : "false");
 		}
 
 		#region IBridgeAdvanced Members
@@ -141,10 +159,13 @@ namespace ConvergePro2DspPlugin
 			Debug.Console(_debugTrace, this, "Linking to Trilist '{0}'", trilist.ID.ToString("X"));
 			Debug.Console(_debugTrace, this, "Linking to Bridge Type {0}", GetType().Name);
 
-			if (CommMonitor != null)
-			{
-				CommMonitor.IsOnlineFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsOnline.JoinNumber]);
-			}
+			IsOnlineFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsOnline.JoinNumber]);
+			
+			if(CommMonitorFeedback != null)
+				CommMonitorFeedback.LinkInputSig(trilist.UShortInput[joinMap.CommunicationMonitorStatus.JoinNumber]);
+						
+			if (SocketStatusFeedback != null)
+				SocketStatusFeedback.LinkInputSig(trilist.UShortInput[joinMap.SocketStatus.JoinNumber]);
 
 			// device name
 			trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
@@ -157,8 +178,10 @@ namespace ConvergePro2DspPlugin
 			{
 				if (!args.DeviceOnLine) return;
 
-				trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
-				CommMonitor.IsOnlineFeedback.FireUpdate();
+				trilist.SetString(joinMap.DeviceName.JoinNumber, Name);				
+				IsOnlineFeedback.FireUpdate();
+				CommMonitorFeedback.FireUpdate();
+				SocketStatusFeedback.FireUpdate();
 			};
 		}
 
@@ -263,15 +286,31 @@ namespace ConvergePro2DspPlugin
 				var index = i - 1;
 
 				var preset = PresetList.ElementAt(index);
-
 				if (preset == null) continue;
 
 				var nameJoin = joinMap.PresetName.JoinNumber + (ushort)index;
-				var presetRecallJoin = joinMap.PresetRecall.JoinNumber + (ushort) index;
-				
+				var presetRecallJoin = joinMap.PresetRecall.JoinNumber + (ushort)index;
+
 				trilist.SetString(nameJoin, preset.Label);
 				trilist.SetSigTrueAction(presetRecallJoin, () => RunPreset(preset));
 			}
+
+			trilist.OnlineStatusChange += (sender, args) =>
+			{
+				if (!args.DeviceOnLine) return;
+
+				for (var i = 1; i <= maxPresets; i++)
+				{
+					var index = i - 1;
+
+					var preset = PresetList.ElementAt(index);
+					if (preset == null) continue;
+
+					var nameJoin = joinMap.PresetName.JoinNumber + (ushort)index;
+
+					trilist.SetString(nameJoin, preset.Label);
+				}
+			};
 		}
 
 		private void LinkDialersToApi(BasicTriList trilist, ConvergePro2DspJoinMap joinMap)
@@ -281,62 +320,84 @@ namespace ConvergePro2DspPlugin
 			uint lineOffset = 0;
 			foreach (var line in Dialers)
 			{
-				var dialer = line;
-
+				var dialer = line.Value;
 				var dialerLineOffset = lineOffset;
-				Debug.Console(_debugTrace, "AddingDialerBridge {0} {1} Offset", dialer.Key, dialerLineOffset);
+				Debug.Console(_debugTrace, "AddingDialerBridge {0}, Offset: {1}", dialer.Key, dialerLineOffset);
 
+				// dialer label
+				trilist.SetString(joinMap.Label.JoinNumber, dialer.Config.Label);
 
+				// keypad commands
 				for (var i = 0; i < joinMap.KeypadNumeric.JoinSpan; i++)
 				{
-					var tempi = i;
-
-					trilist.SetSigTrueAction((joinMap.KeypadNumeric.JoinNumber + (uint)i + dialerLineOffset), () => dialer.Value.SendKeypad((ConvergePro2DspDialer.EKeypadKeys)(tempi)));
+					var keypadIndex = i;
+					var joinOffset = keypadIndex + dialerLineOffset;
+					trilist.SetSigTrueAction((uint)(joinMap.KeypadNumeric.JoinNumber + joinOffset), () => dialer.SendKeypad((ConvergePro2DspDialer.EKeypadKeys)(keypadIndex)));
 				}
+				trilist.SetSigTrueAction((joinMap.KeypadStar.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Star));
+				trilist.SetSigTrueAction((joinMap.KeypadPound.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Pound));
+				trilist.SetSigTrueAction((joinMap.KeypadClear.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Clear));
+				trilist.SetSigTrueAction((joinMap.KeypadBackspace.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Backspace));
+				trilist.SetSigTrueAction(joinMap.KeypadDial.JoinNumber + dialerLineOffset, dialer.Dial);
 
-				// from SiMPL > to Plugin
-				trilist.SetSigTrueAction((joinMap.KeypadStar.JoinNumber + dialerLineOffset), () => dialer.Value.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Star));
-				trilist.SetSigTrueAction((joinMap.KeypadPound.JoinNumber + dialerLineOffset), () => dialer.Value.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Pound));
-				trilist.SetSigTrueAction((joinMap.KeypadClear.JoinNumber + dialerLineOffset), () => dialer.Value.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Clear));
-				trilist.SetSigTrueAction((joinMap.KeypadBackspace.JoinNumber + dialerLineOffset), () => dialer.Value.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Backspace));
-				// from SiMPL > to Plugin
-				trilist.SetSigTrueAction(joinMap.KeypadDial.JoinNumber + dialerLineOffset, () => dialer.Value.Dial());
-				trilist.SetStringSigAction(joinMap.DialString.JoinNumber + dialerLineOffset, dialer.Value.Dial);
-				trilist.SetSigTrueAction(joinMap.DoNotDisturbToggle.JoinNumber + dialerLineOffset, () => dialer.Value.DoNotDisturbToggle());
-				trilist.SetSigTrueAction(joinMap.DoNotDisturbOn.JoinNumber + dialerLineOffset, () => dialer.Value.DoNotDisturbOn());
-				trilist.SetSigTrueAction(joinMap.DoNotDisturbOff.JoinNumber + dialerLineOffset, () => dialer.Value.DoNotDisturbOff());
-				trilist.SetSigTrueAction(joinMap.AutoAnswerToggle.JoinNumber + dialerLineOffset, () => dialer.Value.AutoAnswerToggle());
-				trilist.SetSigTrueAction(joinMap.AutoAnswerOn.JoinNumber + dialerLineOffset, () => dialer.Value.AutoAnswerOn());
-				trilist.SetSigTrueAction(joinMap.AutoAnswerOff.JoinNumber + dialerLineOffset, () => dialer.Value.AutoAnswerOff());
-				trilist.SetSigTrueAction(joinMap.EndCall.JoinNumber + dialerLineOffset, () => dialer.Value.EndAllCalls());
-				//trilist.SetSigTrueAction(joinMap.IncomingCallAccept.JoinNumber + dialerLineOffset, () => dialer.Value.AcceptCall());
-				//trilist.SetSigTrueAction(joinMap.IncomingCallReject.JoinNumber + dialerLineOffset, () => dialer.Value.RejectCall());
+				// dial & call controls
+				trilist.SetSigTrueAction(joinMap.EndCall.JoinNumber + dialerLineOffset, dialer.EndAllCalls);
+				//trilist.SetSigTrueAction(joinMap.IncomingCallAccept.JoinNumber + dialerLineOffset, dialer.AcceptCall());
+				//trilist.SetSigTrueAction(joinMap.IncomingCallReject.JoinNumber + dialerLineOffset, dialer.RejectCall());
 
-				// from SIMPL > to Plugin
-				trilist.SetStringSigAction(joinMap.DialString.JoinNumber + dialerLineOffset, directDialString => dialer.Value.Dial(directDialString));
+				dialer.IncomingCallFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IncomingCall.JoinNumber + dialerLineOffset]);
+				dialer.CallerIdNumberFeedback.LinkInputSig(trilist.StringInput[joinMap.CallerIdNumberFb.JoinNumber + dialerLineOffset]);
+				//dialer.callerIdNameFeedback.LinkInputSig(trilist.StringInput[joinMap.CallerIdNameFb.JoinNumber + dialerLineOffset]);
 
-				// from Plugin > to SiMPL
-				dialer.Value.DoNotDisturbFeedback.LinkInputSig(trilist.BooleanInput[joinMap.DoNotDisturbToggle.JoinNumber + dialerLineOffset]);
-				dialer.Value.DoNotDisturbFeedback.LinkInputSig(trilist.BooleanInput[joinMap.DoNotDisturbOn.JoinNumber + dialerLineOffset]);
-				dialer.Value.DoNotDisturbFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.DoNotDisturbOff.JoinNumber + dialerLineOffset]);
+				// hook state command
+				dialer.OffHookFeedback.LinkInputSig(trilist.BooleanInput[joinMap.KeypadDial.JoinNumber + dialerLineOffset]);
+				dialer.OffHookFeedback.LinkInputSig(trilist.BooleanInput[joinMap.OffHook.JoinNumber + dialerLineOffset]);
+				dialer.OffHookFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.OnHook.JoinNumber + dialerLineOffset]);
 
-				// from Plugin > to SiMPL
-				dialer.Value.AutoAnswerFeedback.LinkInputSig(trilist.BooleanInput[joinMap.AutoAnswerToggle.JoinNumber + dialerLineOffset]);
-				dialer.Value.AutoAnswerFeedback.LinkInputSig(trilist.BooleanInput[joinMap.AutoAnswerOn.JoinNumber + dialerLineOffset]);
-				dialer.Value.AutoAnswerFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.AutoAnswerOff.JoinNumber + dialerLineOffset]);
-				dialer.Value.CallerIdNumberFeedback.LinkInputSig(trilist.StringInput[joinMap.CallerIdNumberFb.JoinNumber + dialerLineOffset]);
+				// dial string
+				trilist.SetStringSigAction(joinMap.DialString.JoinNumber + dialerLineOffset, dialer.Dial);
+				trilist.SetStringSigAction(joinMap.DialString.JoinNumber + dialerLineOffset, dialer.Dial);
 
-				// from Plugin > to SiMPL
-				dialer.Value.OffHookFeedback.LinkInputSig(trilist.BooleanInput[joinMap.KeypadDial.JoinNumber + dialerLineOffset]);
-				dialer.Value.OffHookFeedback.LinkInputSig(trilist.BooleanInput[joinMap.OffHook.JoinNumber + dialerLineOffset]);
-				dialer.Value.OffHookFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.OnHook.JoinNumber + dialerLineOffset]);
-				dialer.Value.DialStringFeedback.LinkInputSig(trilist.StringInput[joinMap.DialString.JoinNumber + dialerLineOffset]);
+				dialer.DialStringFeedback.LinkInputSig(trilist.StringInput[joinMap.DialString.JoinNumber + dialerLineOffset]);
 
-				// from Plugin > to SiMPL
-				dialer.Value.IncomingCallFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IncomingCall.JoinNumber + dialerLineOffset]);
+				// do not disturb controls
+				trilist.SetSigTrueAction(joinMap.DoNotDisturbToggle.JoinNumber + dialerLineOffset, dialer.DoNotDisturbToggle);
+				trilist.SetSigTrueAction(joinMap.DoNotDisturbOn.JoinNumber + dialerLineOffset, dialer.DoNotDisturbOn);
+				trilist.SetSigTrueAction(joinMap.DoNotDisturbOff.JoinNumber + dialerLineOffset, dialer.DoNotDisturbOff);
+
+				dialer.DoNotDisturbFeedback.LinkInputSig(trilist.BooleanInput[joinMap.DoNotDisturbToggle.JoinNumber + dialerLineOffset]);
+				dialer.DoNotDisturbFeedback.LinkInputSig(trilist.BooleanInput[joinMap.DoNotDisturbOn.JoinNumber + dialerLineOffset]);
+				dialer.DoNotDisturbFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.DoNotDisturbOff.JoinNumber + dialerLineOffset]);
+
+				// auto answer controls
+				trilist.SetSigTrueAction(joinMap.AutoAnswerToggle.JoinNumber + dialerLineOffset, dialer.AutoAnswerToggle);
+				trilist.SetSigTrueAction(joinMap.AutoAnswerOn.JoinNumber + dialerLineOffset, dialer.AutoAnswerOn);
+				trilist.SetSigTrueAction(joinMap.AutoAnswerOff.JoinNumber + dialerLineOffset, dialer.AutoAnswerOff);
+
+				dialer.AutoAnswerFeedback.LinkInputSig(trilist.BooleanInput[joinMap.AutoAnswerToggle.JoinNumber + dialerLineOffset]);
+				dialer.AutoAnswerFeedback.LinkInputSig(trilist.BooleanInput[joinMap.AutoAnswerOn.JoinNumber + dialerLineOffset]);
+				dialer.AutoAnswerFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.AutoAnswerOff.JoinNumber + dialerLineOffset]);
 
 				lineOffset = lineOffset + 50;
 			}
+
+			trilist.OnlineStatusChange += (sender, args) =>
+			{
+				if (!args.DeviceOnLine) return;
+
+				foreach (var dialer in Dialers.Select(line => line.Value))
+				{
+					// dialer label
+					trilist.SetString(joinMap.Label.JoinNumber, dialer.Config.Label);
+
+					dialer.AutoAnswerFeedback.FireUpdate();
+					dialer.DoNotDisturbFeedback.FireUpdate();
+					dialer.IncomingCallFeedback.FireUpdate();
+					dialer.OffHookFeedback.FireUpdate();
+					dialer.CallerIdNumberFeedback.FireUpdate();
+					dialer.DialStringFeedback.FireUpdate();
+				}
+			};
 		}
 
 		#endregion
@@ -356,7 +417,7 @@ namespace ConvergePro2DspPlugin
 
 			if (_config.LevelControlBlocks != null)
 			{
-				foreach (KeyValuePair<string, ConvergePro2DspLevelControlBlockConfig> block in _config.LevelControlBlocks)
+				foreach (var block in _config.LevelControlBlocks)
 				{
 					LevelControlPoints.Add(block.Key, new ConvergePro2DspLevelControl(block.Key, block.Value, this));
 
@@ -367,7 +428,7 @@ namespace ConvergePro2DspPlugin
 
 			if (_config.Presets != null)
 			{
-				foreach (KeyValuePair<string, ConvergePro2DspPresetConfig> preset in _config.Presets)
+				foreach (var preset in _config.Presets)
 				{
 					AddPreset(preset.Value);
 
@@ -378,15 +439,15 @@ namespace ConvergePro2DspPlugin
 
 			if (_config.Dialers != null)
 			{
-				foreach (KeyValuePair<string, ConvergePro2DspDialerConfig> dialerConfig in _config.Dialers)
+				foreach (var dialerConfig in _config.Dialers)
 				{
 					var value = dialerConfig.Value;
 					var key = dialerConfig.Key;
 
-					Dialers.Add(key, new ConvergePro2DspDialer(value, this));
+					Dialers.Add(key, new ConvergePro2DspDialer(key, value, this));
 
-					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (EPT:'{2}', EPN:'{3}', BN:'{4}')",
-						key, value.Label, value.EndpointType, value.EndpointNumber, value.BlockNumber);
+					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (EPT:'{2}', EPN:'{3}', BN:'{4}', ChannelName:'{5}')",
+						key, value.Label, value.EndpointType, value.EndpointNumber, value.BlockNumber, value.ChannelName);
 				}
 			}
 
@@ -427,33 +488,52 @@ namespace ConvergePro2DspPlugin
 		/// Handles a response message from the DSP
 		/// </summary>
 		/// <example>
-		/// "<CMD_TYPE> <EPT> <EPN> <BN> <PN> [VALUE]"
-		/// "EP MIC 103 LEVEL MUTE 0"
-		/// "EP PROC 201 LEVEL GAIN -5"
+		/// "{CMD_TYPE} {EPT} {EPN} {BN} {PN} [VALUE]\x0a"
+		/// "EP MIC 103 LEVEL MUTE 0\x0a"
+		/// "EP PROC 201 LEVEL GAIN -5\x0a"
 		/// </example>
 		/// <param name="dev"></param>
 		/// <param name="args"></param>
-		void ResponseReceived(object dev, GenericCommMethodReceiveTextArgs args)
+		private void OnLineRecieved(object dev, GenericCommMethodReceiveTextArgs args)
 		{
-			Debug.Console(_debugVerbose, this, "RX: '{0}'", args.Text);
+			Debug.Console(_debugVerbose, this, "OnLineRecieved args.Text: '{0}'", args.Text);
 			_heartbeatTracker = 0;
 
 			if (string.IsNullOrEmpty(args.Text))
 			{
-				Debug.Console(_debugVerbose, this, "ResponseReceived: args.Text '{0}' is null or empty", args.Text);
+				Debug.Console(_debugVerbose, this, "OnLineRecieved: args.Text '{0}' is null or empty", args.Text);
 				return;
 			}
 
 			try
 			{
-				// option 1		
+				Debug.Console(_debugVerbose, this, "OnLineRecieved args.Text: '{0}'", args.Text);
+				_commRxQueue.Enqueue(new ProcessStringMessage(args.Text, ProcessResponse));
+			}
+			catch (Exception ex)
+			{
+				Debug.Console(_debugNotice, this, Debug.ErrorLogLevel.Error, "OnLineRecieved Exception {0}", ex.Message);
+				Debug.Console(_debugVerbose, this, Debug.ErrorLogLevel.Error, "** Stack Trace:\n{0}",
+					ex.StackTrace);
+				if (ex.InnerException != null)
+					Debug.Console(_debugVerbose, this, Debug.ErrorLogLevel.Error, "** Inner Exception:\n'{0}'",
+						ex.InnerException);
+			}
+		}
+
+		private void ProcessResponse(string response)
+		{
+			try
+			{
+				// option 1
+				/*
 				var expression = new Regex(
-						@"(?<commandtype>.*) (?<endpointType>.*) (?<endpointNumber>.*) (?<blockNumber>.*) (?<parameterName>.*) (?<value>.*)",
+						@"(?<commandtype>.*) (?<endpointType>.*) (?<endpointNumber>.*) (?<blockNumber>.*) (?<parameterName>.*) (?<value>.*)?$",
 						RegexOptions.None);
-				var matches = expression.Match(args.Text);
+				var matches = expression.Match(response);
 				if (!matches.Success)
 				{
-					Debug.Console(_debugVerbose, this, "ResponseReceived: unknown response '{0}', regex match failed", args.Text);
+					Debug.Console(_debugVerbose, this, "ProcessResponse: unknown response '{0}', regex match failed", response);
 					return;
 				}
 
@@ -464,137 +544,93 @@ namespace ConvergePro2DspPlugin
 				var parameterName = matches.Groups["parameterName"].Value;
 				var value = matches.Groups["value"].Value;
 
-				Debug.Console(_debugVerbose, this, "ResponseReceived (OPT1): [{0}, {1}, {2}, {3}, {4}, {5}]",
+				Debug.Console(_debugVerbose, this, "ProcessResponse: [{0}, {1}, {2}, {3}, {4}, {5}]",
 					commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
-
+				*/
 
 				// option 2				
-				var data = args.Text.Split(' ');
+				var data = response.Split(' ');
 				if (data == null)
 				{
-					Debug.Console(_debugVerbose, this, "ResponseReceived: failed to process response");
+					Debug.Console(_debugVerbose, this, "ProcessResponse: failed to process response");
 					return;
 				}
 
-				commandType = data[0] ?? "null";
-				endpointType = data[1] ?? "null";
-				endpointNumber = data[2] ?? "null";
-				blockNumber = data[3] ?? "null";
-				parameterName = data[4] ?? "null";
-				value = data[5] ?? "null";
+				var commandType = data[0] ?? "null";
+				var endpointType = data[1] ?? "null";
+				var endpointNumber = data[2] ?? "null";
+				var blockNumber = data[3] ?? "null";
+				var parameterName = data[4] ?? "null";
+				var value = data[5] ?? "null";
 
-				Debug.Console(_debugVerbose, this, "ResponseRecieved (OPT2): [{0}, {1}, {2}, {3}, {4}, {5}]",
+				Debug.Console(_debugVerbose, this, "ProcessResponse: [{0}, {1}, {2}, {3}, {4}, {5}]",
 					commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
 
 				switch (commandType)
 				{
 					case "EP":
-					{
-						switch (parameterName)
 						{
-							case "GAIN":
-							case "MUTE":
-							case "MIN_GIAN": 
-							case "MAX_GAIN":
+							switch (parameterName)
 							{
-								Debug.Console(_debugNotice, this, "Found '{0}' response", parameterName);
-
-								foreach (var controlPoint in LevelControlPoints)
-								{
-									if (endpointType != (controlPoint.Value).EndpointType && endpointNumber != (controlPoint.Value).EndpointNumber)
+								case "GAIN":
+								case "MUTE":
+								case "MIN_GIAN":
+								case "MAX_GAIN":
 									{
-										continue;
+										Debug.Console(_debugNotice, this, "ProcessResponse: found parameter '{0}' response", parameterName);
+
+										foreach (var controlPoint in LevelControlPoints)
+										{
+											if (endpointType != (controlPoint.Value).EndpointType && endpointNumber != (controlPoint.Value).EndpointNumber)
+											{
+												continue;
+											}
+
+											controlPoint.Value.ParseResponse(parameterName, new[] { value });
+										}
+										break;
 									}
+								case "AUTO_ANSWER_RINGS":
+								case "AUTO_DISCONNECT_MODE":
+								case "KEY_CALL":
+								case "KEY_HOOK_FLASH":
+								case "KEY_REDIAL":
+								case "KEY_HOOK":
+								case "INCOMING_CALL":
+								case "CALLER_ID":
+								case "HOOK":
+								case "RING":
+									{
+										Debug.Console(_debugNotice, this, "ProcessResponse: found parameter '{0}' response", parameterName);
 
-									//controlPoint.Value.ParseResponse(parameterName, new[]{endpointType, endpointNumber, blockNumber, parameterName, value});
-									controlPoint.Value.ParseResponse(parameterName, new[] { value });
-								}
-								break;
-							}
-							case "HOOK":
-							{
-								foreach (var dialer in Dialers.Where(dialer => endpointType == dialer.Value.Config.EndpointType))
-								{
-									dialer.Value.OffHook = value == "1";
-									return;
-								}
-								break;
-							}
-							case "CALLER_ID":
-							case "DIRECTION":
-							{
+										foreach (var dialer in Dialers.Where(dialer => endpointType == dialer.Value.Config.EndpointType))
+										{
+											dialer.Value.ParseResponse(parameterName, new[] { value });
+											return;
+										}
 
-								break;
+										break;
+									}
+								default:
+									{
+										Debug.Console(_debugNotice, this, "ProcessResponse: unhandled parameter '{0}'", parameterName);
+										break;
+									}
 							}
-							default:
-							{
-								Debug.Console(_debugNotice, this, "ResponseRecieved: unhandled parameter '{0}'", parameterName);
-								break;
-							}
+
+							break;
 						}
-
-						break;
-					}
 					default:
-					{
-						Debug.Console(_debugNotice, this, "ResponseRecieved: unhandled response '{0} {1} {2} {3} {4} {5}'",
-							commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
-						break;
-					}
+						{
+							Debug.Console(_debugNotice, this, "ProcessResponse: unhandled response '{0} {1} {2} {3} {4} {5}'",
+								commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
+							break;
+						}
 				}
-			
-				//if (!args.Text.Contains("EP ")) return;
-
-				//// example = EP <EPT> <EPN> <BN> <PN> [VALUE]\x0D
-				//// example = EP FADER 302 LEVEL MUTE 0\x0D
-				//// example = EP PROC 101 LEVEL GAIN -10\x0D
-				//var startPoint = args.Text.IndexOf("EP ", 0, System.StringComparison.Ordinal) + 1;
-				//var endPoint = args.Text.IndexOf("\x0D", startPoint, System.StringComparison.Ordinal);
-				//var length = endPoint - startPoint;
-
-				//// example = [<EPT>, <EPN>, <BN>, <PN> [VALUE]]
-				//// example = [FADER, 302, LEVEL, MUTE, 0]
-				//// exmaple = [PROC, 101, LEVEL, GAIN, -10]
-				//data = args.Text.Substring(startPoint, length).Split(' ');
-
-				//// data[0] = <EPT> endpointType: BFM, DANTE, FADER, GPIO, MIC, OUTPUT, PROC, SGEN, TELCO_RX, TELCO_TX, USB_RX, USB_TX, VOIP_RX, VOIP_TX
-				//// data[1] = <EPN> endpointNumber: format BNN, b=box number, NN=number of the channel
-				//// data[2] = <BN> blockNumber: endpoint block number
-				//// data[3] = <PN> parameterName: GAIN, MUTE, MAX_GAIN, MIN_GAIN, LABEL
-				//// data[4]...data[n] = values
-				//if ((data.Length >= 5 && (data[1] == "MUTE" || data[1] == "GAIN")) || (data.Length >= 6 && data[1] == "MINMAX"))
-				//{
-				//    Debug.Console(_debugNotice, this, "Found {0} response", data[1]);
-
-				//    foreach (KeyValuePair<string, ConvergePro2DspLevelControl> controlPoint in LevelControlPoints)
-				//    {
-				//        if (data[0] != (controlPoint.Value).EndpointType && data[1] != (controlPoint.Value).EndpointNumber)
-				//            continue;
-
-				//        //send command and any values after the group/channel info
-				//        controlPoint.Value.ParseResponse(data[1], data.Skip(4).ToArray());
-				//        return;
-				//    }
-				//}
-
-				//// TODO [] review and update
-				//if (data.Length < 3 || data[1] != "TE") return;
-				//foreach (KeyValuePair<string, ConvergePro2DspDialer> dialer in Dialers.Where(dialer => data[0] == dialer.Value.DeviceId))
-				//{
-				//    switch (data[3])
-				//    {
-				//        case "0":
-				//            dialer.Value.OffHook = false;
-				//            return;
-				//        case "1":
-				//            dialer.Value.OffHook = true;
-				//            return;
-				//    }
-				//}
 			}
 			catch (Exception e)
 			{
-				Debug.Console(_debugNotice, this, "Exception {1} parsing response: '{0}'", args.Text, e.Message);
+				Debug.Console(_debugNotice, this, "ProcessResponse Exception {1} parsing response: '{0}'", response, e.Message);
 				Debug.Console(_debugVerbose, this, Debug.ErrorLogLevel.Error, "** StackTrace:\n{0}", e.StackTrace);
 				if (e.InnerException != null) Debug.Console(_debugNotice, this, Debug.ErrorLogLevel.Error, "** InnerException:\n{0}", e.InnerException);
 			}
@@ -608,7 +644,7 @@ namespace ConvergePro2DspPlugin
 		public void SendLine(string s)
 		{
 			Debug.Console(_debugNotice, this, "TX: '{0}'", s);
-			_comm.SendText(s + "\x0D");
+			_comm.SendText(s + CommCommandDelimter);
 		}
 
 		// Checks the comm health, should be called by comm monitor only. If no heartbeat has been detected recently, will clear the queue and log an error.
@@ -668,25 +704,15 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		/// <param name="preset">Preset Name</param>
 		public void RunPresetByString(string preset)
-		{			
-			SendLine(string.Format("MCCF {1}", preset));
-		}
-
-		/// <summary>
-		/// Queues Commands
-		/// </summary>
-		public class QueuedCommand
 		{
-			public string Command { get; set; }
-			public string AttributeCode { get; set; }
-			public ConvergePro2DspControlPoint ControlPoint { get; set; }
+			SendLine(string.Format("MCCF {1}", preset));
 		}
 
 		#region DebugLevels
 
-		private uint _debugTrace = 0;
-		private uint _debugNotice = 0;
-		private uint _debugVerbose = 0;
+		private uint _debugTrace;
+		private uint _debugNotice;
+		private uint _debugVerbose;
 
 		public void ResetDebugLevels()
 		{
