@@ -558,11 +558,8 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		/// <param name="preset">Preset Name</param>
 		public void RunPresetByString(string preset)
-		{
-			throw new NotImplementedException();
-
-			// TODO [] finalize preset recall command
-			//SendLine(string.Format("{1}", preset));
+		{			
+			SendLine(string.Format("MCCF {1}", preset));
 		}
 
 		/// <summary>
