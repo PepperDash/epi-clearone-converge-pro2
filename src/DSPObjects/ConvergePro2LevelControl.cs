@@ -98,6 +98,11 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Parses the response from the DSP. Command is "MUTE, GAIN, MINMAX, erc. Values[] is the returned values after the channel and group.
 		/// </summary>
+		/// <example>
+		/// {CMD_TYPE} {ENDPOINT_TYPE (EPT)} {ENDPOINT_NUMBER (EPN)} {BLOCK_NUMBER (BN)} {PARAMETER_NAME (PN)} [{VALUE}]
+		/// "EP MIC 103 LEVEL MUTE 0"
+		/// "EP PROC 201 LEVEL GAIN -5"
+		/// </example>
 		/// <param name="command"></param>
 		/// <param name="values"></param>
 		public void ParseResponse(string command, string[] values)
@@ -144,13 +149,13 @@ namespace ConvergePro2DspPlugin
 						VolumeLevelFeedback.FireUpdate();
 						return;
 					}
-				case "MINMAX":
-					{
-						_minLevel = float.Parse(values[0], CultureInfo.InvariantCulture);
-						_maxLevel = float.Parse(values[1], CultureInfo.InvariantCulture);
-						Debug.Console(1, this, "Level {0} new min: {1}, new max: {2}", Label, _minLevel, _maxLevel);
-						break;
-					}
+				//case "MINMAX":
+				//    {
+				//        _minLevel = float.Parse(values[0], CultureInfo.InvariantCulture);
+				//        _maxLevel = float.Parse(values[1], CultureInfo.InvariantCulture);
+				//        Debug.Console(1, this, "Level {0} new min: {1}, new max: {2}", Label, _minLevel, _maxLevel);
+				//        break;
+				//    }
 				case "MIN_GAIN":
 					{
 						_minLevel = float.Parse(values[0], CultureInfo.InvariantCulture);

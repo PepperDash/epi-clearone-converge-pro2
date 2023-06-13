@@ -1,4 +1,7 @@
 ﻿using System;
+using Crestron.SimplSharp;
+using Crestron.SimplSharpPro.CrestronThread;
+using PepperDash.Core;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Devices.Common.Codec;
 
@@ -12,9 +15,9 @@ namespace ConvergePro2DspPlugin
 		public ConvergePro2Dsp Parent { get; private set; }
 
 		/// <summary>
-		/// Dialer block configuration 
+		/// Dialer config
 		/// </summary>
-		public string DeviceId;
+		public ConvergePro2DspDialerConfig Config { get; private set; }
 
 		/// <summary>
 		/// Tracks in call state
@@ -143,7 +146,7 @@ namespace ConvergePro2DspPlugin
 		public ConvergePro2DspDialer(ConvergePro2DspDialerConfig config, ConvergePro2Dsp parent)
 		{
 			Parent = parent;
-			DeviceId = config.EndpointType;
+			Config = config;
 
 			IncomingCallFeedback = new BoolFeedback(() => IncomingCall);
 			DialStringFeedback = new StringFeedback(() => DialString);
@@ -173,7 +176,7 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Subscription method
 		/// </summary>
-		/*
+		/*		
 		public void Subscribe()
 		{
 			try
@@ -211,7 +214,7 @@ namespace ConvergePro2DspPlugin
 		public void DoNotDisturbToggle()
 		{
 			var dndStateInt = !DoNotDisturbState ? 1 : 0;
-			// Parent.SendLine(string.Format("csv {0} {1}", Tags.DoNotDisturbTag, dndStateInt));
+			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE {1}", Config.ChannelName, dndStateInt));
 		}
 
 		/// <summary>
@@ -219,7 +222,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void DoNotDisturbOn()
 		{
-			//Parent.SendLine(string.Format("csv \"{0}\" 1", Tags.DoNotDisturbTag));
+			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE 0", Config.ChannelName));
 		}
 
 		/// <summary>
@@ -227,7 +230,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void DoNotDisturbOff()
 		{
-			// Parent.SendLine(string.Format("csv \"{0}\" 0", Tags.DoNotDisturbTag));
+			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE 1", Config.ChannelName));
 		}
 
 		/// <summary>
@@ -235,8 +238,9 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void AutoAnswerToggle()
 		{
-			int autoAnswerStateInt = !AutoAnswerState ? 1 : 0;
-			Parent.SendLine(string.Format("#{0} AA 1 {1}", DeviceId, autoAnswerStateInt));
+			var autoAnswerStateInt = !AutoAnswerState ? 1 : 0;
+			Parent.SendLine(string.Format("EP {0} {1} SETTINGS AUTO_ANSWER_RINGS {2}", 
+				Config.EndpointType, Config.EndpointNumber, autoAnswerStateInt));
 		}
 
 		/// <summary>
@@ -244,7 +248,8 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void AutoAnswerOn()
 		{
-			Parent.SendLine(string.Format("#{0} AA 1 1", DeviceId));
+			Parent.SendLine(string.Format("EP {0} {1} SETTINGS AUTO_ANSWER_RINGS 1",
+				Config.EndpointType, Config.EndpointNumber));
 		}
 
 		/// <summary>
@@ -252,7 +257,8 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void AutoAnswerOff()
 		{
-			Parent.SendLine(string.Format("#{0} AA 1 0", DeviceId));
+			Parent.SendLine(string.Format("EP {0} {1} SETTINGS AUTO_ANSWER_RINGS 0",
+				Config.EndpointType, Config.EndpointNumber));
 		}
 
 		private void PollKeypad()
@@ -268,7 +274,7 @@ namespace ConvergePro2DspPlugin
 		public void SendKeypad(EKeypadKeys button)
 		{
 			string keypadTag = null;
-			// Debug.Console(2, "DIaler {0} SendKeypad {1}", this.ke);
+			// Debug.Console(_debugVersbose, "DIaler {0} SendKeypad {1}", this.ke);
 			switch (button)
 			{
 				case EKeypadKeys.Num0: keypadTag = "0"; break;
@@ -300,9 +306,18 @@ namespace ConvergePro2DspPlugin
 
 			if (keypadTag != null && OffHook)
 			{
-				var cmdToSend = string.Format("#{0} DIAL 1 {1}", DeviceId, keypadTag);
-				Parent.SendLine(cmdToSend);
-				PollKeypad();
+				CrestronInvoke.BeginInvoke(b =>
+				{
+					var cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_PRESSED {1}", Config.ChannelName, keypadTag);
+					Parent.SendLine(cmdToSend);
+
+					Thread.Sleep(500);
+
+					cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_RELEASED {1}", Config.ChannelName, keypadTag);
+					Parent.SendLine(cmdToSend);
+
+					PollKeypad();
+				});				
 			}
 			else if (keypadTag != null && !OffHook)
 			{
@@ -317,8 +332,8 @@ namespace ConvergePro2DspPlugin
 		{
 			if (OffHook) EndAllCalls();
 			else
-			{
-				Parent.SendLine(string.Format("#{0} DIAL 1 {1}", DeviceId, DialString));
+			{				
+				Parent.SendLine(string.Format("EP {0} KEY KEY_CALL {1}", Config.ChannelName, DialString));
 			}
 		}
 
@@ -336,7 +351,7 @@ namespace ConvergePro2DspPlugin
 			{
 				EndAllCalls();
 			}
-			Parent.SendLine(string.Format("#{0} DIAL 1 {1}", DeviceId, number));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_CALL {1}", Config.ChannelName, number));
 		}
 
 		/// <summary>
@@ -345,21 +360,21 @@ namespace ConvergePro2DspPlugin
 		/// <param name="item">Use null as the parameter, use of CodecActiveCallItem is not implemented</param>
 		public void EndCall(CodecActiveCallItem item)
 		{
-			Parent.SendLine(string.Format("#{0} TE 1 0", DeviceId));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", Config.ChannelName));
 		}
 		/// <summary>
 		/// Get Hook state 
 		/// </summary>
 		public void GetHookState()
-		{
-			Parent.SendLine(string.Format("#{0} TE 1", DeviceId));
+		{			
+			Parent.SendLine(string.Format("EP {0} INQUIRE HOOK", Config.ChannelName));
 		}
 		/// <summary>
 		/// Ends all connectted calls
 		/// </summary>
 		public void EndAllCalls()
 		{
-			Parent.SendLine(string.Format("#{0} TE 1 0", DeviceId));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", Config.ChannelName));
 		}
 
 		/// <summary>
@@ -368,7 +383,7 @@ namespace ConvergePro2DspPlugin
 		public void AcceptCall()
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("#{0} TE 1 1", DeviceId));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 1", Config.ChannelName));
 		}
 
 		/// <summary>
@@ -378,7 +393,7 @@ namespace ConvergePro2DspPlugin
 		public void AcceptCall(CodecActiveCallItem item)
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("#{0} TE 1 1", DeviceId));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 1", Config.ChannelName));
 		}
 
 		/// <summary>
@@ -387,7 +402,7 @@ namespace ConvergePro2DspPlugin
 		public void RejectCall()
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("#{0} TE 1 0", DeviceId));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", Config.ChannelName));
 		}
 
 		/// <summary>
@@ -397,7 +412,7 @@ namespace ConvergePro2DspPlugin
 		public void RejectCall(CodecActiveCallItem item)
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("#{0} TE 1 0", DeviceId));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", Config.ChannelName));
 		}
 
 		/// <summary>

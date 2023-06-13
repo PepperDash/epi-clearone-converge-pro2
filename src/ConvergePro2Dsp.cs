@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
@@ -425,62 +426,171 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Handles a response message from the DSP
 		/// </summary>
+		/// <example>
+		/// "<CMD_TYPE> <EPT> <EPN> <BN> <PN> [VALUE]"
+		/// "EP MIC 103 LEVEL MUTE 0"
+		/// "EP PROC 201 LEVEL GAIN -5"
+		/// </example>
 		/// <param name="dev"></param>
 		/// <param name="args"></param>
 		void ResponseReceived(object dev, GenericCommMethodReceiveTextArgs args)
 		{
 			Debug.Console(_debugVerbose, this, "RX: '{0}'", args.Text);
 			_heartbeatTracker = 0;
+
+			if (string.IsNullOrEmpty(args.Text))
+			{
+				Debug.Console(_debugVerbose, this, "ResponseReceived: args.Text '{0}' is null or empty", args.Text);
+				return;
+			}
+
 			try
 			{
-				if (!args.Text.Contains("EP ")) return;
-
-				// example = EP <EPT> <EPN> <BN> <PN> [VALUE]\x0D
-				// example = EP FADER 302 LEVEL MUTE 0\x0D
-				// example = EP PROC 101 LEVEL GAIN -10\x0D
-				var startPoint = args.Text.IndexOf("EP ", 0) + 1;
-				var endPoint = args.Text.IndexOf("\x0D", startPoint);
-				var length = endPoint - startPoint;
-
-				// example = [<EPT>, <EPN>, <BN>, <PN> [VALUE]]
-				// example = [FADER, 302, LEVEL, MUTE, 0]
-				// exmaple = [PROC, 101, LEVEL, GAIN, -10]
-				var data = args.Text.Substring(startPoint, length).Split(' ');
-
-				// data[0] = <EPT> endpointType: BFM, DANTE, FADER, GPIO, MIC, OUTPUT, PROC, SGEN, TELCO_RX, TELCO_TX, USB_RX, USB_TX, VOIP_RX, VOIP_TX
-				// data[1] = <EPN> endpointNumber: format BNN, b=box number, NN=number of the channel
-				// data[2] = <BN> blockNumber: endpoint block number
-				// data[3] = <PN> parameterName: GAIN, MUTE, MAX_GAIN, MIN_GAIN, LABEL
-				// data[4]...data[n] = values
-				if ((data.Length >= 5 && (data[1] == "MUTE" || data[1] == "GAIN")) || (data.Length >= 6 && data[1] == "MINMAX"))
+				// option 1		
+				var expression = new Regex(
+						@"(?<commandtype>.*) (?<endpointType>.*) (?<endpointNumber>.*) (?<blockNumber>.*) (?<parameterName>.*) (?<value>.*)",
+						RegexOptions.None);
+				var matches = expression.Match(args.Text);
+				if (!matches.Success)
 				{
-					Debug.Console(_debugNotice, this, "Found {0} response", data[1]);
-
-					foreach (KeyValuePair<string, ConvergePro2DspLevelControl> controlPoint in LevelControlPoints)
-					{
-						if (data[0] != (controlPoint.Value).EndpointType && data[1] != (controlPoint.Value).EndpointNumber)
-							continue;
-
-						//send command and any values after the group/channel info
-						controlPoint.Value.ParseResponse(data[1], data.Skip(4).ToArray());
-						return;
-					}
+					Debug.Console(_debugVerbose, this, "ResponseReceived: unknown response '{0}', regex match failed", args.Text);
+					return;
 				}
 
-				// TODO [] review and update
-				if (data.Length < 3 || data[1] != "TE") return;
-				foreach (KeyValuePair<string, ConvergePro2DspDialer> dialer in Dialers.Where(dialer => data[0] == dialer.Value.DeviceId))
+				var commandType = matches.Groups["commandType"].Value;
+				var endpointType = matches.Groups["endpointType"].Value;
+				var endpointNumber = matches.Groups["endpointNumber"].Value;
+				var blockNumber = matches.Groups["blockNumber"].Value;
+				var parameterName = matches.Groups["parameterName"].Value;
+				var value = matches.Groups["value"].Value;
+
+				Debug.Console(_debugVerbose, this, "ResponseReceived (OPT1): [{0}, {1}, {2}, {3}, {4}, {5}]",
+					commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
+
+
+				// option 2				
+				var data = args.Text.Split(' ');
+				if (data == null)
 				{
-					switch (data[3])
+					Debug.Console(_debugVerbose, this, "ResponseReceived: failed to process response");
+					return;
+				}
+
+				commandType = data[0] ?? "null";
+				endpointType = data[1] ?? "null";
+				endpointNumber = data[2] ?? "null";
+				blockNumber = data[3] ?? "null";
+				parameterName = data[4] ?? "null";
+				value = data[5] ?? "null";
+
+				Debug.Console(_debugVerbose, this, "ResponseRecieved (OPT2): [{0}, {1}, {2}, {3}, {4}, {5}]",
+					commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
+
+				switch (commandType)
+				{
+					case "EP":
 					{
-						case "0":
-							dialer.Value.OffHook = false;
-							return;
-						case "1":
-							dialer.Value.OffHook = true;
-							return;
+						switch (parameterName)
+						{
+							case "GAIN":
+							case "MUTE":
+							case "MIN_GIAN": 
+							case "MAX_GAIN":
+							{
+								Debug.Console(_debugNotice, this, "Found '{0}' response", parameterName);
+
+								foreach (var controlPoint in LevelControlPoints)
+								{
+									if (endpointType != (controlPoint.Value).EndpointType && endpointNumber != (controlPoint.Value).EndpointNumber)
+									{
+										continue;
+									}
+
+									//controlPoint.Value.ParseResponse(parameterName, new[]{endpointType, endpointNumber, blockNumber, parameterName, value});
+									controlPoint.Value.ParseResponse(parameterName, new[] { value });
+								}
+								break;
+							}
+							case "HOOK":
+							{
+								foreach (var dialer in Dialers.Where(dialer => endpointType == dialer.Value.Config.EndpointType))
+								{
+									dialer.Value.OffHook = value == "1";
+									return;
+								}
+								break;
+							}
+							case "CALLER_ID":
+							case "DIRECTION":
+							{
+
+								break;
+							}
+							default:
+							{
+								Debug.Console(_debugNotice, this, "ResponseRecieved: unhandled parameter '{0}'", parameterName);
+								break;
+							}
+						}
+
+						break;
+					}
+					default:
+					{
+						Debug.Console(_debugNotice, this, "ResponseRecieved: unhandled response '{0} {1} {2} {3} {4} {5}'",
+							commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
+						break;
 					}
 				}
+			
+				//if (!args.Text.Contains("EP ")) return;
+
+				//// example = EP <EPT> <EPN> <BN> <PN> [VALUE]\x0D
+				//// example = EP FADER 302 LEVEL MUTE 0\x0D
+				//// example = EP PROC 101 LEVEL GAIN -10\x0D
+				//var startPoint = args.Text.IndexOf("EP ", 0, System.StringComparison.Ordinal) + 1;
+				//var endPoint = args.Text.IndexOf("\x0D", startPoint, System.StringComparison.Ordinal);
+				//var length = endPoint - startPoint;
+
+				//// example = [<EPT>, <EPN>, <BN>, <PN> [VALUE]]
+				//// example = [FADER, 302, LEVEL, MUTE, 0]
+				//// exmaple = [PROC, 101, LEVEL, GAIN, -10]
+				//data = args.Text.Substring(startPoint, length).Split(' ');
+
+				//// data[0] = <EPT> endpointType: BFM, DANTE, FADER, GPIO, MIC, OUTPUT, PROC, SGEN, TELCO_RX, TELCO_TX, USB_RX, USB_TX, VOIP_RX, VOIP_TX
+				//// data[1] = <EPN> endpointNumber: format BNN, b=box number, NN=number of the channel
+				//// data[2] = <BN> blockNumber: endpoint block number
+				//// data[3] = <PN> parameterName: GAIN, MUTE, MAX_GAIN, MIN_GAIN, LABEL
+				//// data[4]...data[n] = values
+				//if ((data.Length >= 5 && (data[1] == "MUTE" || data[1] == "GAIN")) || (data.Length >= 6 && data[1] == "MINMAX"))
+				//{
+				//    Debug.Console(_debugNotice, this, "Found {0} response", data[1]);
+
+				//    foreach (KeyValuePair<string, ConvergePro2DspLevelControl> controlPoint in LevelControlPoints)
+				//    {
+				//        if (data[0] != (controlPoint.Value).EndpointType && data[1] != (controlPoint.Value).EndpointNumber)
+				//            continue;
+
+				//        //send command and any values after the group/channel info
+				//        controlPoint.Value.ParseResponse(data[1], data.Skip(4).ToArray());
+				//        return;
+				//    }
+				//}
+
+				//// TODO [] review and update
+				//if (data.Length < 3 || data[1] != "TE") return;
+				//foreach (KeyValuePair<string, ConvergePro2DspDialer> dialer in Dialers.Where(dialer => data[0] == dialer.Value.DeviceId))
+				//{
+				//    switch (data[3])
+				//    {
+				//        case "0":
+				//            dialer.Value.OffHook = false;
+				//            return;
+				//        case "1":
+				//            dialer.Value.OffHook = true;
+				//            return;
+				//    }
+				//}
 			}
 			catch (Exception e)
 			{

@@ -109,7 +109,7 @@
 							"label": "System On",
 							"preset": "1",
 							"endpointType": "",
-							"endpointNumber": "",							
+							"endpointNumber": "",
 							"blockNumber": ""
 						},
 						"preset2": {
@@ -124,9 +124,10 @@
 					"dialers": {
 						"dialer1": {
 							"label": "Dialer 1",
-							"endpointType": "VOIP_TX",
-							"endpointNumber": "301",
-							"blockNumber": "DIALER",
+							"endpointType": "",
+							"endpointNumber": "",							
+							"blockNumber": "",
+							"channelName": "TELCO_RX",							
 							"clearOnHangup": true
 						}
 					}

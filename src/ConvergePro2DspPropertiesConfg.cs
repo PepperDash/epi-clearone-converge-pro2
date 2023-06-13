@@ -75,6 +75,9 @@ namespace ConvergePro2DspPlugin
 	/// </summary>
 	public class ConvergePro2DspDialerConfig : ConvergePro2BaseConfigProperties
 	{
+		[JsonProperty("channelName")]
+		public string ChannelName { get; set; }
+
 		[JsonProperty("ClearOnHangup")]
 		public bool ClearOnHangup { get; set; }
 	}
