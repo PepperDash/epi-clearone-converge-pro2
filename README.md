@@ -35,8 +35,15 @@ The configuration properties are need to properly structure the commands used.
 
 Command Structure: 
 
-EP Commands: `EP <EPT> <EPN> <BN> <PN> [VALUE]`
-RAMP Commands: `RAMP <EPT> <EPN> <TARGET_LEVEL> <STEP>`
+EP Commands: 
+
+- `EP <EPT> <EPN> <BN> <PN> [VALUE]`
+- `EP <CHANNEL_NAME> <PN> [VALUE]`
+
+RAMP Commands: 
+
+- `RAMP <EPT> <EPN> <TARGET_LEVEL> <STEP>`
+- `RAMP <CHANNEL_NAME> <TARGET_LEVEL> <STEP>`
 
 ### Endpoint Types (EPT)
 
@@ -149,6 +156,8 @@ Type: `convergepro2dsp`
 
 ### Level Control Blocks Configuration
 
+Configuration using EPT, EPN, BN
+
 ```json
 {
 	"properties": {
@@ -168,9 +177,26 @@ Type: `convergepro2dsp`
 }
 ```
 
-### Presets Configuration
+Configuration using Channel Name
 
-Preset recall will throw a `Not Implemented Exception` at this time.  The API manual does not clearly define the command structure for preset recalls.
+```json
+{
+	"properties": {
+		"levelControlBlocks": {
+			"fader1": {                            
+				"label": "Room",
+				"channelName": "ROOM_LEVEL",
+				"disabled": false,
+				"hasLevel": true,
+				"hasMute": true,
+				"isMic": false
+			}
+		}
+	}
+}
+```
+
+### Presets Configuration
 
 ```json
 {
@@ -178,10 +204,7 @@ Preset recall will throw a `Not Implemented Exception` at this time.  The API ma
 		"presets": {
 			"preset1": {
 				"label": "System On",
-				"preset": "1",
-				"endpointType": "",
-				"endpointNumber": "",							
-				"blockNumber": ""
+				"preset": "1"
 			},
 			"preset2": {
 				"label": "System Off",
@@ -196,10 +219,26 @@ Preset recall will throw a `Not Implemented Exception` at this time.  The API ma
 }
 ```
 
+`"preset"` is the name of the macro to run, the name is case sensitive.
+
+
 ### Dialer COntrol Blocks Configuration
 
 ```json
-
+{
+	"properties": {
+		"dialers": {
+			"dialer1": {
+				"label": "Dialer 1",
+				"channelName": "DIALER1",
+				"endpointType": "TELCO_RX",
+				"endpointNumber": "101",
+				"blockNumber": "",
+				"clearOnHangup": true
+			}
+		}
+	}
+}
 ```
 
 ### Bridge Configuration

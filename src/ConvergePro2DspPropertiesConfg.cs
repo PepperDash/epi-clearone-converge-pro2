@@ -39,8 +39,11 @@ namespace ConvergePro2DspPlugin
 	/// <summary>
 	/// Converge Pro 2 Presets Configurations
 	/// </summary>
-	public class ConvergePro2DspPresetConfig : ConvergePro2BaseConfigProperties
+	public class ConvergePro2DspPresetConfig
 	{
+		[JsonProperty("label")]
+		public string Label { get; set; }
+
 		[JsonProperty("preset")]
 		public string Preset { get; set; }
 	}
@@ -75,9 +78,6 @@ namespace ConvergePro2DspPlugin
 	/// </summary>
 	public class ConvergePro2DspDialerConfig : ConvergePro2BaseConfigProperties
 	{
-		[JsonProperty("channelName")]
-		public string ChannelName { get; set; }
-
 		[JsonProperty("ClearOnHangup")]
 		public bool ClearOnHangup { get; set; }
 	}
@@ -89,6 +89,9 @@ namespace ConvergePro2DspPlugin
 	{
 		[JsonProperty("label")]
 		public string Label { get; set; }
+
+		[JsonProperty("channelName")]
+		public string ChannelName { get; set; }
 		
 		[JsonProperty("endpointType")]
 		public string EndpointType { get; set; }

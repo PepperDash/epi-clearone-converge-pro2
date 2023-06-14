@@ -37,7 +37,7 @@ namespace ConvergePro2DspPlugin
 
 		public string BoxName { get; set; }
 		public Dictionary<string, ConvergePro2DspLevelControl> LevelControlPoints { get; private set; }
-		public List<ConvergePro2DspPresetConfig> PresetList = new List<ConvergePro2DspPresetConfig>();
+		public Dictionary<string, ConvergePro2DspPresetConfig> Presets = new Dictionary<string, ConvergePro2DspPresetConfig>();
 		public Dictionary<string, ConvergePro2DspDialer> Dialers { get; set; }
 
 		public bool ShowHexResponse { get; set; }
@@ -88,6 +88,7 @@ namespace ConvergePro2DspPlugin
 				}
 
 				LevelControlPoints = new Dictionary<string, ConvergePro2DspLevelControl>();
+				Presets = new Dictionary<string, ConvergePro2DspPresetConfig>();
 				Dialers = new Dictionary<string, ConvergePro2DspDialer>();
 
 				Debug.Console(_debugVerbose, this, new string('*', 50));
@@ -275,7 +276,7 @@ namespace ConvergePro2DspPlugin
 
 		private void LinkPresetsToApi(BasicTriList trilist, ConvergePro2DspJoinMap joinMap)
 		{
-			var maxPresets = PresetList.Count;
+			var maxPresets = Presets.Count;
 			if (maxPresets > joinMap.PresetRecall.JoinSpan) maxPresets = (int)joinMap.PresetRecall.JoinSpan;
 
 			trilist.SetStringSigAction(joinMap.PresetRecall.JoinNumber, RunPresetByString);
@@ -285,11 +286,18 @@ namespace ConvergePro2DspPlugin
 			{
 				var index = i - 1;
 
-				var preset = PresetList.ElementAt(index);
+				var presetKey = Presets.ElementAt(index).Key;
+				var preset = Presets.ElementAt(index).Value;
 				if (preset == null) continue;
 
 				var nameJoin = joinMap.PresetName.JoinNumber + (ushort)index;
 				var presetRecallJoin = joinMap.PresetRecall.JoinNumber + (ushort)index;
+
+				Debug.Console(_debugVerbose, this, @"LinkPresetsToApi:
+	{0}-'{1}'
+	nameJoin-'{2}'
+	presetRecallJoin-{3}",
+					presetKey, preset.Label, nameJoin, presetRecallJoin);
 
 				trilist.SetString(nameJoin, preset.Label);
 				trilist.SetSigTrueAction(presetRecallJoin, () => RunPreset(preset));
@@ -303,7 +311,7 @@ namespace ConvergePro2DspPlugin
 				{
 					var index = i - 1;
 
-					var preset = PresetList.ElementAt(index);
+					var preset = Presets.ElementAt(index).Value;
 					if (preset == null) continue;
 
 					var nameJoin = joinMap.PresetName.JoinNumber + (ushort)index;
@@ -325,7 +333,8 @@ namespace ConvergePro2DspPlugin
 				Debug.Console(_debugTrace, "AddingDialerBridge {0}, Offset: {1}", dialer.Key, dialerLineOffset);
 
 				// dialer label
-				trilist.SetString(joinMap.Label.JoinNumber, dialer.Config.Label);
+				trilist.SetString(joinMap.Label.JoinNumber, dialer.Label);
+				dialer.LocalNumberFeedback.LinkInputSig(trilist.StringInput[joinMap.DisplayNumber.JoinNumber + dialerLineOffset]);
 
 				// keypad commands
 				for (var i = 0; i < joinMap.KeypadNumeric.JoinSpan; i++)
@@ -388,7 +397,7 @@ namespace ConvergePro2DspPlugin
 				foreach (var dialer in Dialers.Select(line => line.Value))
 				{
 					// dialer label
-					trilist.SetString(joinMap.Label.JoinNumber, dialer.Config.Label);
+					trilist.SetString(joinMap.Label.JoinNumber, dialer.Label);
 
 					dialer.AutoAnswerFeedback.FireUpdate();
 					dialer.DoNotDisturbFeedback.FireUpdate();
@@ -412,7 +421,7 @@ namespace ConvergePro2DspPlugin
 			Debug.Console(_debugVerbose, this, "Creating DSP Objects");
 
 			LevelControlPoints.Clear();
-			PresetList.Clear();
+			Presets.Clear();
 			Dialers.Clear();
 
 			if (_config.LevelControlBlocks != null)
@@ -421,8 +430,8 @@ namespace ConvergePro2DspPlugin
 				{
 					LevelControlPoints.Add(block.Key, new ConvergePro2DspLevelControl(block.Key, block.Value, this));
 
-					Debug.Console(_debugVerbose, this, "Added LevelControl {0}-'{1}' (EPT:'{2}', EPN:'{3}', BN:'{4}')",
-						block.Key, block.Value.Label, block.Value.EndpointType, block.Value.EndpointNumber, block.Value.BlockNumber);
+					Debug.Console(_debugVerbose, this, "Added LevelControl {0}-'{1}' (ChannelName:'{2}', EPT:'{3}', EPN:'{4}', BN:'{5}')",
+						block.Key, block.Value.Label, block.Value.ChannelName, block.Value.EndpointType, block.Value.EndpointNumber, block.Value.BlockNumber);
 				}
 			}
 
@@ -430,10 +439,10 @@ namespace ConvergePro2DspPlugin
 			{
 				foreach (var preset in _config.Presets)
 				{
-					AddPreset(preset.Value);
-
-					Debug.Console(_debugVerbose, this, "Added Preset {0}-'{1}' '{2}' (EPT:'{3}', EPN:'{4}', BN:'{5}')",
-						preset.Key, preset.Value.Label, preset.Value.Preset, preset.Value.EndpointType, preset.Value.EndpointNumber, preset.Value.BlockNumber);
+					Presets.Add(preset.Key, preset.Value);
+					
+					Debug.Console(_debugVerbose, this, "Added Preset {0}-'{1}' '{2}'",
+						preset.Key, preset.Value.Label, preset.Value.Preset);
 				}
 			}
 
@@ -441,13 +450,10 @@ namespace ConvergePro2DspPlugin
 			{
 				foreach (var dialerConfig in _config.Dialers)
 				{
-					var value = dialerConfig.Value;
-					var key = dialerConfig.Key;
+					Dialers.Add(dialerConfig.Key, new ConvergePro2DspDialer(dialerConfig.Key, dialerConfig.Value, this));
 
-					Dialers.Add(key, new ConvergePro2DspDialer(key, value, this));
-
-					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (EPT:'{2}', EPN:'{3}', BN:'{4}', ChannelName:'{5}')",
-						key, value.Label, value.EndpointType, value.EndpointNumber, value.BlockNumber, value.ChannelName);
+					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (ChannelName:'{2}', EPT:'{3}', EPN:'{4}')",
+						dialerConfig.Key, dialerConfig.Value.Label, dialerConfig.Value.ChannelName, dialerConfig.Value.EndpointType, dialerConfig.Value.EndpointNumber);
 				}
 			}
 
@@ -525,30 +531,6 @@ namespace ConvergePro2DspPlugin
 		{
 			try
 			{
-				// option 1
-				/*
-				var expression = new Regex(
-						@"(?<commandtype>.*) (?<endpointType>.*) (?<endpointNumber>.*) (?<blockNumber>.*) (?<parameterName>.*) (?<value>.*)?$",
-						RegexOptions.None);
-				var matches = expression.Match(response);
-				if (!matches.Success)
-				{
-					Debug.Console(_debugVerbose, this, "ProcessResponse: unknown response '{0}', regex match failed", response);
-					return;
-				}
-
-				var commandType = matches.Groups["commandType"].Value;
-				var endpointType = matches.Groups["endpointType"].Value;
-				var endpointNumber = matches.Groups["endpointNumber"].Value;
-				var blockNumber = matches.Groups["blockNumber"].Value;
-				var parameterName = matches.Groups["parameterName"].Value;
-				var value = matches.Groups["value"].Value;
-
-				Debug.Console(_debugVerbose, this, "ProcessResponse: [{0}, {1}, {2}, {3}, {4}, {5}]",
-					commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
-				*/
-
-				// option 2				
 				var data = response.Split(' ');
 				if (data == null)
 				{
@@ -556,16 +538,14 @@ namespace ConvergePro2DspPlugin
 					return;
 				}
 
-				var commandType = data[0] ?? "null";
-				var endpointType = data[1] ?? "null";
-				var endpointNumber = data[2] ?? "null";
-				var blockNumber = data[3] ?? "null";
+				var commandType = data[0] ?? "null";				
+				var channelName = string.Format("{0} {1} {2}", data[1], data[2], data[3]);
 				var parameterName = data[4] ?? "null";
 				var value = data[5] ?? "null";
 
-				Debug.Console(_debugVerbose, this, "ProcessResponse: [{0}, {1}, {2}, {3}, {4}, {5}]",
-					commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
-
+				Debug.Console(_debugVerbose, this, "ProcessResponse: [{0}, {1}, {2}, {3}]",
+					commandType, channelName, parameterName, value);
+				
 				switch (commandType)
 				{
 					case "EP":
@@ -581,7 +561,7 @@ namespace ConvergePro2DspPlugin
 
 										foreach (var controlPoint in LevelControlPoints)
 										{
-											if (endpointType != (controlPoint.Value).EndpointType && endpointNumber != (controlPoint.Value).EndpointNumber)
+											if (channelName != (controlPoint.Value).ChannelName)
 											{
 												continue;
 											}
@@ -603,7 +583,7 @@ namespace ConvergePro2DspPlugin
 									{
 										Debug.Console(_debugNotice, this, "ProcessResponse: found parameter '{0}' response", parameterName);
 
-										foreach (var dialer in Dialers.Where(dialer => endpointType == dialer.Value.Config.EndpointType))
+										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 										{
 											dialer.Value.ParseResponse(parameterName, new[] { value });
 											return;
@@ -622,8 +602,8 @@ namespace ConvergePro2DspPlugin
 						}
 					default:
 						{
-							Debug.Console(_debugNotice, this, "ProcessResponse: unhandled response '{0} {1} {2} {3} {4} {5}'",
-								commandType, endpointType, endpointNumber, blockNumber, parameterName, value);
+							Debug.Console(_debugNotice, this, "ProcessResponse: unhandled response '{0} {1} {2} {3}'",
+								commandType, channelName, parameterName, value);
 							break;
 						}
 				}
@@ -666,16 +646,7 @@ namespace ConvergePro2DspPlugin
 				Debug.Console(_debugVerbose, this, "Heartbeat okay");
 			}
 		}
-
-		/// <summary>
-		/// Adds a presst
-		/// </summary>
-		/// <param name="s">ConvergeProDspPresets</param>
-		public void AddPreset(ConvergePro2DspPresetConfig s)
-		{
-			PresetList.Add(s);
-		}
-
+		
 		/// <summary>
 		/// Runs the presetConfig with the number provided
 		/// </summary>
@@ -684,10 +655,10 @@ namespace ConvergePro2DspPlugin
 		{
 			Debug.Console(_debugNotice, this, "RunPreset: '{0}'", preset);
 
-			if (0 < preset && preset <= PresetList.Count && PresetList[preset - 1] != null)
-			{
-				RunPreset(PresetList[preset - 1]);
-			}
+			var p = Presets.ElementAt(preset).Value;
+			if (p == null) return;
+
+			RunPreset(p);
 		}
 
 		/// <summary>

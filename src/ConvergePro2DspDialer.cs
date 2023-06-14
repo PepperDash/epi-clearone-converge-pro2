@@ -19,10 +19,11 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public ConvergePro2Dsp Parent { get; private set; }
 
-		/// <summary>
-		/// Dialer config
-		/// </summary>
-		public ConvergePro2DspDialerConfig Config { get; private set; }
+		public string Label { get; private set; }
+		public bool ClearOnHangup { get; private set; }
+		public string ChannelName { get; private set; }
+		public string EndpointType { get; private set; }
+		public string EndpointNumber { get; private set; }
 
 		/// <summary>
 		/// Tracks if the dialer is VoIP or TELCO
@@ -35,9 +36,28 @@ namespace ConvergePro2DspPlugin
 		public bool IsInCall { get; private set; }
 
 		/// <summary>
+		/// Dialer local phone number feedback
+		/// </summary>
+		public StringFeedback LocalNumberFeedback;
+		// local phone number backer field
+		private string _localNumber;
+		/// <summary>
+		/// Dialer local phone number property
+		/// </summary>
+		public String LocalNumber
+		{
+			get { return _localNumber; }
+			private set
+			{
+				_localNumber = value;
+				LocalNumberFeedback.FireUpdate();
+			}
+		}
+
+		/// <summary>
 		/// Dial string feedback 
 		/// </summary>
-		public StringFeedback DialStringFeedback;		
+		public StringFeedback DialStringFeedback;
 		// Dial string backer field
 		private string _dialString;
 		/// <summary>
@@ -151,15 +171,44 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="key"></param>
 		/// <param name="config">configuration object</param>
 		/// <param name="parent">parent dsp instance</param>
 		public ConvergePro2DspDialer(string key, ConvergePro2DspDialerConfig config, ConvergePro2Dsp parent)
 		{
+			Key = key;
+
+			//if (parent == null)
+			//{
+			//    Debug.Console(0, this, "Constructor: parent is null or empty");
+			//    return;
+			//}			
 			Parent = parent;
-			Config = config;
 
-			IsVoipDialer = Config.EndpointType.ToLower().Contains("voip");
+			//if (config == null)
+			//{
+			//    Debug.Console(0, this, "Constructor: config is null or empty");
+			//    return;
+			//}
+			Label = config.Label;
 
+			if (string.IsNullOrEmpty(config.ChannelName))
+			{
+				EndpointType = config.EndpointType;
+				EndpointNumber = config.EndpointNumber;
+
+				IsVoipDialer = EndpointType.ToLower().Contains("voip");
+
+				ChannelName = string.Format("{0} {1}", EndpointType, EndpointNumber);
+			}
+			else
+			{
+				ChannelName = config.ChannelName;
+			}
+
+			ClearOnHangup = config.ClearOnHangup;
+
+			LocalNumberFeedback = new StringFeedback(() => LocalNumber);
 			IncomingCallFeedback = new BoolFeedback(() => IncomingCall);
 			DialStringFeedback = new StringFeedback(() => DialString);
 			OffHookFeedback = new BoolFeedback(() => OffHook);
@@ -206,51 +255,57 @@ namespace ConvergePro2DspPlugin
 		/// <param name="values"></param>
 		public void ParseResponse(string command, string[] values)
 		{
-			Debug.Console(1, this, "Parsing response {0} values: '{1}'", command, string.Join(" ", values));
+			Debug.Console(1, this, "Parsing response {0} values: '{1}'", command, string.Join(", ", values));
 			switch (command)
 			{
 				case "AUTO_ANSWER_RINGS":
-				{
-					break;
-				}
+					{
+						break;
+					}
 				case "AUTO_DISCONNECT_MODE":
-				{
-					break;
-				}
+					{
+						break;
+					}
 				case "KEY_CALL":
-				{
-					break;
-				}
+					{
+						break;
+					}
 				case "KEY_HOOK_FLASH":
-				{
-					break;
-				}
+					{
+						break;
+					}
 				case "KEY_REDIAL":
-				{
-					break;
-				}
+					{
+						break;
+					}
 				case "INCOMING_CALL":
-				{
-					break;
-				}
+					{
+						IncomingCall = values[0] == "1";
+						break;
+					}
 				case "CALLER_ID":
-				{
-					break;
-				}
+					{
+						break;
+					}
 				case "HOOK":
-				{
-					OffHook = values[0] == "1";
-					break;
-				}
+					{
+						OffHook = values[0] == "1";
+						break;
+					}
 				case "RING":
-				{
-					break;
-				}
+					{
+						break;
+					}
+				case "LOCAL_NUMBER":
+					{
+						LocalNumber = values[0];
+						break;
+					}
 				default:
-				{
-					Debug.Console(2, this, "ResponseRecieved: unhandled response '{0} {1}'", command, values.ToString());
-					break;
-				}
+					{
+						Debug.Console(2, this, "ResponseRecieved: unhandled response '{0} {1}'", command, values.ToString());
+						break;
+					}
 			}
 		}
 
@@ -295,7 +350,7 @@ namespace ConvergePro2DspPlugin
 		public void DoNotDisturbToggle()
 		{
 			var dndStateInt = !DoNotDisturbState ? 1 : 0;
-			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE {1}", Config.ChannelName, dndStateInt));
+			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE {1}", ChannelName, dndStateInt));
 		}
 
 		/// <summary>
@@ -303,7 +358,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void DoNotDisturbOn()
 		{
-			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE 0", Config.ChannelName));
+			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE 0", ChannelName));
 		}
 
 		/// <summary>
@@ -311,7 +366,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void DoNotDisturbOff()
 		{
-			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE 1", Config.ChannelName));
+			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE 1", ChannelName));
 		}
 
 		/// <summary>
@@ -320,8 +375,8 @@ namespace ConvergePro2DspPlugin
 		public void AutoAnswerToggle()
 		{
 			var autoAnswerStateInt = !AutoAnswerState ? 1 : 0;
-			Parent.SendLine(string.Format("EP {0} {1} SETTINGS AUTO_ANSWER_RINGS {2}", 
-				Config.EndpointType, Config.EndpointNumber, autoAnswerStateInt));
+			Parent.SendLine(string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS {1}",
+				ChannelName, autoAnswerStateInt));
 		}
 
 		/// <summary>
@@ -329,8 +384,8 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void AutoAnswerOn()
 		{
-			Parent.SendLine(string.Format("EP {0} {1} SETTINGS AUTO_ANSWER_RINGS 1",
-				Config.EndpointType, Config.EndpointNumber));
+			Parent.SendLine(string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 1",
+				ChannelName));
 		}
 
 		/// <summary>
@@ -338,14 +393,14 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void AutoAnswerOff()
 		{
-			Parent.SendLine(string.Format("EP {0} {1} SETTINGS AUTO_ANSWER_RINGS 0",
-				Config.EndpointType, Config.EndpointNumber));
+			Parent.SendLine(string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 0",
+				ChannelName));
 		}
 
 		private void PollKeypad()
 		{
-			// Thread.Sleep(50);
-			// Parent.SendLine(string.Format("cg \"{0}\"", Tags.DialStringTag));
+			Thread.Sleep(50);
+			Parent.SendLine(string.Format("EP {0} INQUIRE DIGITS_DIALED_SINCE_OFF_HOOK", ChannelName));
 		}
 
 		/// <summary>
@@ -389,16 +444,16 @@ namespace ConvergePro2DspPlugin
 			{
 				CrestronInvoke.BeginInvoke(b =>
 				{
-					var cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_PRESSED {1}", Config.ChannelName, keypadTag);
+					var cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_PRESSED {1}", ChannelName, keypadTag);
 					Parent.SendLine(cmdToSend);
 
 					Thread.Sleep(500);
 
-					cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_RELEASED {1}", Config.ChannelName, keypadTag);
+					cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_RELEASED {1}", ChannelName, keypadTag);
 					Parent.SendLine(cmdToSend);
 
 					PollKeypad();
-				});				
+				});
 			}
 			else if (keypadTag != null && !OffHook)
 			{
@@ -413,8 +468,8 @@ namespace ConvergePro2DspPlugin
 		{
 			if (OffHook) EndAllCalls();
 			else
-			{				
-				Parent.SendLine(string.Format("EP {0} KEY KEY_CALL {1}", Config.ChannelName, DialString));
+			{
+				Parent.SendLine(string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, DialString));
 			}
 		}
 
@@ -432,7 +487,7 @@ namespace ConvergePro2DspPlugin
 			{
 				EndAllCalls();
 			}
-			Parent.SendLine(string.Format("EP {0} KEY KEY_CALL {1}", Config.ChannelName, number));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, number));
 		}
 
 		/// <summary>
@@ -441,21 +496,21 @@ namespace ConvergePro2DspPlugin
 		/// <param name="item">Use null as the parameter, use of CodecActiveCallItem is not implemented</param>
 		public void EndCall(CodecActiveCallItem item)
 		{
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", Config.ChannelName));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", ChannelName));
 		}
 		/// <summary>
 		/// Get Hook state 
 		/// </summary>
 		public void GetHookState()
-		{			
-			Parent.SendLine(string.Format("EP {0} INQUIRE HOOK", Config.ChannelName));
+		{
+			Parent.SendLine(string.Format("EP {0} INQUIRE HOOK", ChannelName));
 		}
 		/// <summary>
 		/// Ends all connectted calls
 		/// </summary>
 		public void EndAllCalls()
 		{
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", Config.ChannelName));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", ChannelName));
 		}
 
 		/// <summary>
@@ -464,7 +519,7 @@ namespace ConvergePro2DspPlugin
 		public void AcceptCall()
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 1", Config.ChannelName));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 1", ChannelName));
 		}
 
 		/// <summary>
@@ -474,7 +529,7 @@ namespace ConvergePro2DspPlugin
 		public void AcceptCall(CodecActiveCallItem item)
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 1", Config.ChannelName));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 1", ChannelName));
 		}
 
 		/// <summary>
@@ -483,7 +538,7 @@ namespace ConvergePro2DspPlugin
 		public void RejectCall()
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", Config.ChannelName));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", ChannelName));
 		}
 
 		/// <summary>
@@ -493,7 +548,7 @@ namespace ConvergePro2DspPlugin
 		public void RejectCall(CodecActiveCallItem item)
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", Config.ChannelName));
+			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", ChannelName));
 		}
 
 		/// <summary>
@@ -568,6 +623,6 @@ namespace ConvergePro2DspPlugin
 			Pound,
 			Clear,
 			Backspace
-		}		
+		}
 	}
 }

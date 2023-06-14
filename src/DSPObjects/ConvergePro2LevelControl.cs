@@ -171,9 +171,9 @@ namespace ConvergePro2DspPlugin
 			}
 		}
 
-		public void SimpleCommand(string cmd, string value)
+		public void SimpleCommand(string param, string value)
 		{
-			SendFullCommand("EP", EndpointType, EndpointNumber, BlockNumber, cmd, value);
+			SendFullCommand("EP", ChannelName, param, value);
 		}
 
 		/// <summary>
@@ -187,12 +187,12 @@ namespace ConvergePro2DspPlugin
 
 		public void GetCurrentMin()
 		{
-			SendFullCommand("EP", new[] { EndpointType, EndpointNumber, BlockNumber, "MIN_GAIN" });
+			SendFullCommand("EP", new[] {ChannelName, "MIN_GAIN" });
 		}
 
 		public void GetCurrentMax()
 		{
-			SendFullCommand("EP", new[] { EndpointType, EndpointNumber, BlockNumber, "MAX_GAIN" });
+			SendFullCommand("EP", new[] { ChannelName, "MAX_GAIN" });
 		}
 
 		/// <summary>
@@ -200,7 +200,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void GetCurrentGain()
 		{
-			SendFullCommand("EP", new[] { EndpointType, EndpointNumber, BlockNumber, "GAIN" });
+			SendFullCommand("EP", new[] { ChannelName, "GAIN" });
 		}
 
 		/// <summary>
@@ -208,7 +208,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void GetCurrentMute()
 		{
-			SendFullCommand("EP", new[] { EndpointType, EndpointNumber, BlockNumber, "MUTE" });
+			SendFullCommand("EP", new[] { ChannelName, "MUTE" });
 		}
 
 		/// <summary>
@@ -258,7 +258,7 @@ namespace ConvergePro2DspPlugin
 		/// <param name="press"></param>
 		public void VolumeDown(bool press)
 		{
-			SendFullCommand("RAMP", new[] { EndpointType, EndpointNumber, _minLevel.ToString("N"), "2" });
+			SendFullCommand("RAMP", new[] { ChannelName, _minLevel.ToString("N"), "2" });
 		}
 
 		/// <summary>
@@ -271,7 +271,7 @@ namespace ConvergePro2DspPlugin
 			{
 				MuteOff();
 			}
-			SendFullCommand("RAMP", new[] { EndpointType, EndpointNumber, _maxLevel.ToString("N"), "2" });
+			SendFullCommand("RAMP", new[] { ChannelName, _maxLevel.ToString("N"), "2" });
 		}
 
 		/// <summary>

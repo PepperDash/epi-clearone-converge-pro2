@@ -55,6 +55,7 @@
 					"levelControlBlocks": {
 						"fader1": {                            
 							"label": "Room",
+							"channelName": "ROOM",
 							"endpointType": "PROC",
 							"endpointNumber": "101",
 							"blockNumber": "LEVEL",
@@ -65,6 +66,7 @@
                         },
 						"fader2": {                            
 							"label": "Program",
+							"channelName": "PGM",
 							"endpointType": "PROC",
 							"endpointNumber": "102",
 							"blockNumber": "LEVEL",
@@ -75,6 +77,7 @@
                         },
 						"fader3": {                            
 							"label": "Mic 1",
+							"channelName": "MIC1",
 							"endpointType": "MIC",
 							"endpointNumber": "103",
 							"blockNumber": "LEVEL",
@@ -85,6 +88,7 @@
                         },
 						"fader4": {                            
 							"label": "VoIP Call",
+							"channelName": "CALL_VRX",
 							"endpointType": "VOIP_RX",
 							"endpointNumber": "201",
 							"blockNumber": "LEVEL",
@@ -95,6 +99,7 @@
                         },
 						"fader5": {                            
 							"label": "Phone Call",
+							"channelName": "CALL_TRX",
 							"endpointType": "TELCO_RX",
 							"endpointNumber": "202",
 							"blockNumber": "LEVEL",
@@ -105,12 +110,9 @@
                         }
 					},
 					"presets": {
-						"preset1": {							
+						"preset1": {
 							"label": "System On",
-							"preset": "1",
-							"endpointType": "",
-							"endpointNumber": "",
-							"blockNumber": ""
+							"preset": "1"
 						},
 						"preset2": {
 							"label": "System Off",
@@ -124,10 +126,9 @@
 					"dialers": {
 						"dialer1": {
 							"label": "Dialer 1",
+							"channelName": "DIALER1",
 							"endpointType": "TELCO_RX",
 							"endpointNumber": "101",
-							"blockNumber": "",
-							"channelName": "DIALER1",							
 							"clearOnHangup": true
 						}
 					}
