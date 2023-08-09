@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package >
   <metadata>
-    <id>PepperDash.Essentials.Pluing.ClearOneConvergePro2</id>
+    <id>PepperDash.Essentials.Plugin.ClearOneConvergePro2</id>
     <readme>docs\README.md</readme>
     <version>2.0.2</version>
     <title>ClearOne Converge Pro 2 DSP Plugin</title>
@@ -12,7 +12,7 @@
     <projectUrl>https://github.com/PepperDash/epi-dsp-clearone-converge-pro2</projectUrl>
     <copyright>Copyright 2023</copyright>
     <description>ClearOne Converge Pro 2 DSP plugin used with PepperDash Essentials SIMPL# Pro application to expose functionality in SIMPL Windows using bridges.</description>
-    <tags>crestron 3series 4series essentials pepperdash pepperdashessentials epi essentials plugin</tags>
+    <tags>crestron 3series 4series pepperdash pepperdashessentials essentials plugin epi</tags>
     <repository type="git" url="https://github.com/PepperDash/epi-dsp-clearone-converge-pro2"/>
   </metadata>
     <files>
