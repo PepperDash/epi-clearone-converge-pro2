@@ -7,6 +7,15 @@ using PepperDash.Essentials.Devices.Common.Codec;
 
 namespace ConvergePro2DspPlugin
 {
+	/// <summary>
+	/// Telco Dialer
+	/// </summary>
+	/// <remarks>
+	/// API 
+	/// 2.4.22 TELCO_RX - PDF Page 251
+	/// 2.4.23 TELCO_TX - PDF Page 267
+	/// 2.4.24 UA - PDF Page 269
+	/// </remarks>
 	public class ConvergePro2DspDialer : IHasDialer, IKeyed
 	{
 		/// <summary>

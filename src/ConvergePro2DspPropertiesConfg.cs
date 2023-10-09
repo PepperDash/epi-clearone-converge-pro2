@@ -98,8 +98,5 @@ namespace ConvergePro2DspPlugin
 
 		[JsonProperty("endpointNumber")]
 		public string EndpointNumber { get; set; }
-
-		[JsonProperty("blockNumber")]
-		public string BlockNumber { get; set; }
 	}
 }

@@ -59,7 +59,7 @@ namespace ConvergePro2DspPlugin
 		/// <param name="config">level control block configuration object</param>
 		/// <param name="parent">dsp parent isntance</param>
 		public ConvergePro2DspLevelControl(string key, ConvergePro2DspLevelControlBlockConfig config, ConvergePro2Dsp parent)
-			: base(config.Label, config.EndpointType, config.EndpointNumber, config.BlockNumber, parent)
+			: base(config.Label, config.EndpointType, config.EndpointNumber, parent)
 		{
 			_parent = parent;
 
@@ -258,7 +258,7 @@ namespace ConvergePro2DspPlugin
 		/// <param name="press"></param>
 		public void VolumeDown(bool press)
 		{
-			SendFullCommand("RAMP", new[] { ChannelName, _minLevel.ToString("N"), "2" });
+			SendFullCommand("RAMP", new[] { ChannelName, _minLevel.ToString("N"), "2", "REL" });
 		}
 
 		/// <summary>
@@ -271,7 +271,7 @@ namespace ConvergePro2DspPlugin
 			{
 				MuteOff();
 			}
-			SendFullCommand("RAMP", new[] { ChannelName, _maxLevel.ToString("N"), "2" });
+			SendFullCommand("RAMP", new[] { ChannelName, _maxLevel.ToString("N"), "2", "REL" });
 		}
 
 		/// <summary>

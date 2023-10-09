@@ -58,10 +58,10 @@ namespace ConvergePro2DspPlugin
 		/// <param name="epn">endpoint number</param>
 		/// <param name="bn">block number</param>
 		/// <param name="parent">parent dsp device</param>
-		protected ConvergePro2DspControlPoint(string label, string ept, string epn, string bn, ConvergePro2Dsp parent)
+		protected ConvergePro2DspControlPoint(string label, string ept, string epn, ConvergePro2Dsp parent)
 		{
 			Label = label;
-			ChannelName = string.Format("{0} {1} {2}", ept, epn, bn);
+			ChannelName = string.Format("{0} {1}", ept, epn);
 			Parent = parent;
 		}
 

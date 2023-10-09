@@ -430,8 +430,8 @@ namespace ConvergePro2DspPlugin
 				{
 					LevelControlPoints.Add(block.Key, new ConvergePro2DspLevelControl(block.Key, block.Value, this));
 
-					Debug.Console(_debugVerbose, this, "Added LevelControl {0}-'{1}' (ChannelName:'{2}', EPT:'{3}', EPN:'{4}', BN:'{5}')",
-						block.Key, block.Value.Label, block.Value.ChannelName, block.Value.EndpointType, block.Value.EndpointNumber, block.Value.BlockNumber);
+					Debug.Console(_debugVerbose, this, "Added LevelControl {0}-'{1}' (ChannelName:'{2}', EPT:'{3}', EPN:'{4}')",
+						block.Key, block.Value.Label, block.Value.ChannelName, block.Value.EndpointType, block.Value.EndpointNumber);
 				}
 			}
 
@@ -531,17 +531,34 @@ namespace ConvergePro2DspPlugin
 		{
 			try
 			{
-				var data = response.Split(' ');
+				var data = response.Split(' ').ToList();
 				if (data == null)
 				{
 					Debug.Console(_debugVerbose, this, "ProcessResponse: failed to process response");
 					return;
 				}
 
-				var commandType = data[0] ?? "null";				
-				var channelName = string.Format("{0} {1} {2}", data[1], data[2], data[3]);
-				var parameterName = data[4] ?? "null";
-				var value = data[5] ?? "null";
+				var commandType = data[0];
+				var channelName = string.Format("{0} {1}", data[1], data[2]);
+				var blockNumber = data[3];
+				var parameterName = data[4];
+				var value = data[5];
+
+				//var isLevel = data.Any(d => d.Equals("LEVEL"));
+				//var pnIndex = data.IndexOf("LEVEL");
+				
+				var tokens = response.TokenizeParams(' ');
+				using (var parameters = tokens.GetEnumerator())
+				{
+					commandType = parameters.Next();
+					channelName = parameters.Next();
+					if (parameters.NextEquals("LEVEL", StringComparison.OrdinalIgnoreCase) ||
+						parameters.NextEquals("INQUIRE", StringComparison.InvariantCultureIgnoreCase))
+					{
+						parameterName = parameters.Next();
+					}
+					value = parameters.Next();
+				}
 
 				Debug.Console(_debugVerbose, this, "ProcessResponse: [{0}, {1}, {2}, {3}]",
 					commandType, channelName, parameterName, value);
@@ -570,6 +587,8 @@ namespace ConvergePro2DspPlugin
 										}
 										break;
 									}
+								// "EP '<EPT> <EPN>' INQUIRE AUTO_ANSWER_RINGS [VALUE]"
+								// "EP '<EPT> <EPN>' NOTIFICATON INCOMING_CALL [VALUE]"
 								case "AUTO_ANSWER_RINGS":
 								case "AUTO_DISCONNECT_MODE":
 								case "KEY_CALL":
