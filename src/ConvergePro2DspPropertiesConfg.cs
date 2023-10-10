@@ -65,7 +65,7 @@ namespace ConvergePro2DspPlugin
 		[JsonProperty("levelParameter")]
 		public string LevelParameter { get; set; }
 
-		[JsonProperty("muteParamter")]
+		[JsonProperty("muteParameter")]
 		public string MuteParameter { get; set; }
 		
 		[JsonProperty("disabled")]

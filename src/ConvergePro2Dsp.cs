@@ -23,8 +23,8 @@ namespace ConvergePro2DspPlugin
 		public readonly GenericCommunicationMonitor CommMonitor;
 		private readonly GenericQueue _commRxQueue;
 
-		private const string CommCommandDelimter = "\r";
-		private const string CommGatherDelimiter = "\n\r";
+		private const string CommCommandDelimter = "\r\n";
+		private const string CommGatherDelimiter = "\r\n";
 
 		public BoolFeedback IsOnlineFeedback { get { return CommMonitor.IsOnlineFeedback; } }
 		public IntFeedback CommMonitorFeedback { get; private set; }
@@ -499,8 +499,8 @@ namespace ConvergePro2DspPlugin
 				return;
 			}
 
-			var telnetNegotation = new byte[] { 0xFF, 0xFE, 0x01, 0xFF, 0xFE, 0x21, 0xFF, 0xFC, 0x01, 0xFF, 0xFC, 0x03 };
-			args.Client.SendBytes(telnetNegotation);
+			//var telnetNegotation = new byte[] { 0xFF, 0xFE, 0x01, 0xFF, 0xFE, 0x21, 0xFF, 0xFC, 0x01, 0xFF, 0xFC, 0x03 };
+			//args.Client.SendBytes(telnetNegotation);
 		}
 
 		private void OnTextReceived(object dev, GenericCommMethodReceiveTextArgs args)
@@ -518,22 +518,22 @@ namespace ConvergePro2DspPlugin
 				Debug.Console(_debugVerbose, this, "OnTextReceived args.Text: '{0}'", args.Text);
 				if (args.Text.Contains("Username:"))
 				{
-					var cmd = string.Format("{0}{1}", _config.Control.TcpSshProperties.Username, CommCommandDelimter);
-					SendText(cmd);
+					SendText(_config.Control.TcpSshProperties.Username);
+					return;
 				}
 
 				if (args.Text.Contains("Password:"))
 				{
-					var cmd = string.Format("{0}{1}", _config.Control.TcpSshProperties.Password, CommCommandDelimter);
-					SendText(cmd);
+					SendText(_config.Control.TcpSshProperties.Password);
+					return;
 				}
 
-				if (args.Text.Contains("=>"))
-				{
-					_loggedIn = true;
-					_comm.TextReceived -= OnTextReceived;
-					InitializeDspObjects();
-				}
+				_loggedIn = args.Text.Contains("=>");
+
+				if (!_loggedIn) return;
+
+				_comm.TextReceived -= OnTextReceived;
+				InitializeDspObjects();
 			}
 			catch (Exception ex)
 			{
@@ -623,17 +623,23 @@ namespace ConvergePro2DspPlugin
 					: string.Empty;
 
 				var value = results.Groups["Value"].Success
-					? results.Groups["Value"].Value
+					? results.Groups["Value"].Value.Trim()
 					: string.Empty;
 
 				if (string.IsNullOrEmpty(commandType) || commandType.Equals("Error"))
 				{
-					Debug.Console(0, this, "ProcessResponse: {0}", response.Replace("=>","").Trim());
+					Debug.Console(_debugNotice, this, "ProcessResponse: {0}", response.Replace("=>","").Trim());
 					return;
 				}
 				
 				Debug.Console(_debugVerbose, this, "ProcessResponse: CommandType-'{0}', ChannelName-'{1}', BlockName-'{2}', ParameterName-'{3}', Value-'{4}'",
 					commandType, channelName, blockName, parameterName, value);
+
+				if (string.IsNullOrEmpty(channelName) || string.IsNullOrEmpty(parameterName))
+				{
+					Debug.Console(_debugVerbose, this, "ProcessResponse: channelName-'{0}' || parameterName-'{1}' is empty or null", channelName, parameterName);
+					return;
+				}
 
 				switch (commandType)
 				{
@@ -648,13 +654,8 @@ namespace ConvergePro2DspPlugin
 									{
 										Debug.Console(_debugNotice, this, "ProcessResponse: found parameter '{0}' response", parameterName);
 
-										foreach (var controlPoint in LevelControlPoints)
+										foreach (var controlPoint in LevelControlPoints.Where(controlPoint => channelName == controlPoint.Value.ChannelName))
 										{
-											if (channelName != (controlPoint.Value).ChannelName)
-											{
-												continue;
-											}
-
 											controlPoint.Value.ParseResponse(parameterName, new[] { value });
 										}
 										break;

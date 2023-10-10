@@ -1,4 +1,5 @@
-﻿using PepperDash.Essentials.Devices.Common.DSP;
+﻿using PepperDash.Core;
+using PepperDash.Essentials.Devices.Common.DSP;
 
 namespace ConvergePro2DspPlugin
 {

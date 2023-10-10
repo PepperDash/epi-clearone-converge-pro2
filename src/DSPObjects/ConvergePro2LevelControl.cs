@@ -149,13 +149,6 @@ namespace ConvergePro2DspPlugin
 						VolumeLevelFeedback.FireUpdate();
 						return;
 					}
-				//case "MINMAX":
-				//    {
-				//        _minLevel = float.Parse(values[0], CultureInfo.InvariantCulture);
-				//        _maxLevel = float.Parse(values[1], CultureInfo.InvariantCulture);
-				//        Debug.Console(1, this, "Level {0} new min: {1}, new max: {2}", Label, _minLevel, _maxLevel);
-				//        break;
-				//    }
 				case "MIN_GAIN":
 					{
 						_minLevel = float.Parse(values[0], CultureInfo.InvariantCulture);
@@ -173,9 +166,9 @@ namespace ConvergePro2DspPlugin
 
 		public void SendText(string parameterName, string value)
 		{
-			var cmd = string.IsNullOrEmpty(value) 
-				? string.Format("EP {0} {1} {2} {3}", ChannelName, BlockName, parameterName, value) // set
-				: string.Format("EP {0} {1} {2}", ChannelName, BlockName, parameterName);			// get
+			var cmd = string.IsNullOrEmpty(value)
+				? string.Format("EP {0} {1} {2}", ChannelName, BlockName, parameterName) // get
+				: string.Format("EP {0} {1} {2} {3}", ChannelName, BlockName, parameterName, value); // set
 
 			base.SendText(cmd);
 		}
@@ -245,15 +238,17 @@ namespace ConvergePro2DspPlugin
 		/// <blockName name="level"></blockName>
 		public void SetVolume(ushort level)
 		{
-			Debug.Console(1, this, "Set Volume: {0}", level);
+			Debug.Console(1, this, "SetVolume: {0}", level);
 			if (AutomaticUnmuteOnVolumeUp && _isMuted)
 			{
 				MuteOff();
 			}
-			var tempLevel = UseAbsoluteValue ? ScaleFull(level) : Scale(level);
-			Debug.Console(1, this, "Set Scaled Volume: {0}", tempLevel);
+			var tempLevel = UseAbsoluteValue 
+				? ScaleFull(level) 
+				: Scale(level);
+			Debug.Console(1, this, "SetVolume Scaled: {0}", tempLevel);
 
-			SendText(LevelParameter, tempLevel.ToString("N2"));
+			SendText(LevelParameter, string.Format("{0}", tempLevel));
 		}
 
 		
@@ -264,8 +259,7 @@ namespace ConvergePro2DspPlugin
 		/// <blockName name="press"></blockName>
 		public void VolumeDown(bool press)
 		{
-			var val = string.Format("{0} -2 REL", _minLevel.ToString("N"));
-			SendText(LevelParameter, val);
+			SendText(LevelParameter, "-2 REL");
 		}
 
 		/// <summary>
@@ -278,8 +272,7 @@ namespace ConvergePro2DspPlugin
 			{
 				MuteOff();
 			}
-			var val = string.Format("{0} 2 REL", _minLevel.ToString("N"));
-			SendText(LevelParameter, val);
+			SendText(LevelParameter, "2 REL");
 		}
 
 		/// <summary>
