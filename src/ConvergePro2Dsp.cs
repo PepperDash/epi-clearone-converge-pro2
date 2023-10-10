@@ -8,7 +8,6 @@ using PepperDash.Core;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
 using PepperDash.Essentials.Core.Queues;
-using PepperDash.Essentials.Devices.Common.DSP;
 
 namespace ConvergePro2DspPlugin
 {
@@ -24,8 +23,8 @@ namespace ConvergePro2DspPlugin
 		public readonly GenericCommunicationMonitor CommMonitor;
 		private readonly GenericQueue _commRxQueue;
 
-		private const string CommCommandDelimter = "\x0D";
-		private const string CommGatherDelimiter = "\x0A";
+		private const string CommCommandDelimter = "\r";
+		private const string CommGatherDelimiter = "\n\r";
 
 		public BoolFeedback IsOnlineFeedback { get { return CommMonitor.IsOnlineFeedback; } }
 		public IntFeedback CommMonitorFeedback { get; private set; }
@@ -33,6 +32,7 @@ namespace ConvergePro2DspPlugin
 
 		private readonly ConvergePro2DspConfig _config;
 		private uint _heartbeatTracker;
+		private bool _loggedIn; 
 		private bool _initializeComplete;
 
 		public string BoxName { get; set; }
@@ -61,10 +61,14 @@ namespace ConvergePro2DspPlugin
 				_config = config;
 				BoxName = _config.Boxname;
 
+				_loggedIn = false;
+
 				_comm = comm;
+				_comm.TextReceived += OnTextReceived;
 				_commRxQueue = new GenericQueue(key + "-queue");
 				CommGather = new CommunicationGather(_comm, CommGatherDelimiter);
 				CommGather.LineReceived += OnLineRecieved;
+				
 
 				var pollTime = 30000;
 				var timeToWarning = 180000;
@@ -111,25 +115,10 @@ namespace ConvergePro2DspPlugin
 		{
 			_comm.Connect();
 			CommMonitor.Start();
-			InitializeDspObjects();
-
-			_initializeComplete = true;
 
 			base.Initialize();
-		}
 
-		private void OnCommMonitorStatusChange(object sender, MonitorStatusChangeEventArgs args)
-		{
-			Debug.Console(_debugVerbose, this, "Communication monitor state: {0}", args.Status);
-			if (args.Status == MonitorStatus.IsOk && _initializeComplete)
-			{
-				InitializeDspObjects();
-			}
-		}
-
-		private void OnSocketConnectionChange(object sender, GenericSocketStatusChageEventArgs args)
-		{
-			Debug.Console(_debugVerbose, this, "Socket state: {0}, IsConnected: {1}", args.Client.ClientStatus, args.Client.IsConnected ? "true" : "false");
+			_initializeComplete = true;
 		}
 
 		#region IBridgeAdvanced Members
@@ -426,12 +415,12 @@ namespace ConvergePro2DspPlugin
 
 			if (_config.LevelControlBlocks != null)
 			{
-				foreach (var block in _config.LevelControlBlocks)
+				foreach (var levelControlBlock in _config.LevelControlBlocks)
 				{
-					LevelControlPoints.Add(block.Key, new ConvergePro2DspLevelControl(block.Key, block.Value, this));
+					LevelControlPoints.Add(levelControlBlock.Key, new ConvergePro2DspLevelControl(levelControlBlock.Key, levelControlBlock.Value, this));
 
-					Debug.Console(_debugVerbose, this, "Added LevelControl {0}-'{1}' (ChannelName:'{2}', EPT:'{3}', EPN:'{4}')",
-						block.Key, block.Value.Label, block.Value.ChannelName, block.Value.EndpointType, block.Value.EndpointNumber);
+					Debug.Console(_debugVerbose, this, "Added LevelControl {0}-'{1}' (ChannelName:'{2}', BlockName:'{3}', MuteParameter:'{4}')",
+						levelControlBlock.Key, levelControlBlock.Value.Label, levelControlBlock.Value.ChannelName, levelControlBlock.Value.BlockName, levelControlBlock.Value.MuteParameter);
 				}
 			}
 
@@ -452,8 +441,8 @@ namespace ConvergePro2DspPlugin
 				{
 					Dialers.Add(dialerConfig.Key, new ConvergePro2DspDialer(dialerConfig.Key, dialerConfig.Value, this));
 
-					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (ChannelName:'{2}', EPT:'{3}', EPN:'{4}')",
-						dialerConfig.Key, dialerConfig.Value.Label, dialerConfig.Value.ChannelName, dialerConfig.Value.EndpointType, dialerConfig.Value.EndpointNumber);
+					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (ChannelName:'{2}', BlockName:'{3}', MuteParameter:'{4}')",
+						dialerConfig.Key, dialerConfig.Value.Label, dialerConfig.Value.ChannelName, dialerConfig.Value.BlockName, dialerConfig.Value.MuteParameter);
 				}
 			}
 
@@ -490,19 +479,85 @@ namespace ConvergePro2DspPlugin
 			}
 		}
 
+		private void OnCommMonitorStatusChange(object sender, MonitorStatusChangeEventArgs args)
+		{
+			Debug.Console(_debugVerbose, this, "Communication monitor state: {0}", args.Status);
+			if (args.Status == MonitorStatus.IsOk && _initializeComplete)
+			{
+				InitializeDspObjects();
+			}
+		}
+
+		private void OnSocketConnectionChange(object sender, GenericSocketStatusChageEventArgs args)
+		{
+			Debug.Console(_debugVerbose, this, "Socket state: {0}, IsConnected: {1}", args.Client.ClientStatus, args.Client.IsConnected ? "true" : "false");
+
+			if (!args.Client.IsConnected)
+			{
+				_loggedIn = false;
+				_comm.TextReceived += OnTextReceived;
+				return;
+			}
+
+			var telnetNegotation = new byte[] { 0xFF, 0xFE, 0x01, 0xFF, 0xFE, 0x21, 0xFF, 0xFC, 0x01, 0xFF, 0xFC, 0x03 };
+			args.Client.SendBytes(telnetNegotation);
+		}
+
+		private void OnTextReceived(object dev, GenericCommMethodReceiveTextArgs args)
+		{
+			//Debug.Console(_debugVerbose, this, "OnTextReceived args.Text: '{0}'", args.Text);
+
+			if (string.IsNullOrEmpty(args.Text))
+			{
+				Debug.Console(_debugVerbose, this, "OnTextReceived: args.Text '{0}' is null or empty", args.Text);
+				return;
+			}
+
+			try
+			{
+				Debug.Console(_debugVerbose, this, "OnTextReceived args.Text: '{0}'", args.Text);
+				if (args.Text.Contains("Username:"))
+				{
+					var cmd = string.Format("{0}{1}", _config.Control.TcpSshProperties.Username, CommCommandDelimter);
+					SendText(cmd);
+				}
+
+				if (args.Text.Contains("Password:"))
+				{
+					var cmd = string.Format("{0}{1}", _config.Control.TcpSshProperties.Password, CommCommandDelimter);
+					SendText(cmd);
+				}
+
+				if (args.Text.Contains("=>"))
+				{
+					_loggedIn = true;
+					_comm.TextReceived -= OnTextReceived;
+					InitializeDspObjects();
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.Console(_debugNotice, this, Debug.ErrorLogLevel.Error, "OnTextReceived Exception {0}", ex.Message);
+				Debug.Console(_debugVerbose, this, Debug.ErrorLogLevel.Error, "** Stack Trace:\n{0}",
+					ex.StackTrace);
+				if (ex.InnerException != null)
+					Debug.Console(_debugVerbose, this, Debug.ErrorLogLevel.Error, "** Inner Exception:\n'{0}'",
+						ex.InnerException);
+			}
+		}
+
 		/// <summary>
 		/// Handles a response message from the DSP
 		/// </summary>
 		/// <example>
-		/// "{CMD_TYPE} {EPT} {EPN} {BN} {PN} [VALUE]\x0a"
-		/// "EP MIC 103 LEVEL MUTE 0\x0a"
-		/// "EP PROC 201 LEVEL GAIN -5\x0a"
+		/// "{CommandType} {ChannelName} {BlockName} {ParameterName} {Value}\x0a"
+		/// "EP MyChannel LEVEL GAIN -5.0\x0a\x0d"
 		/// </example>
 		/// <param name="dev"></param>
 		/// <param name="args"></param>
 		private void OnLineRecieved(object dev, GenericCommMethodReceiveTextArgs args)
 		{
-			Debug.Console(_debugVerbose, this, "OnLineRecieved args.Text: '{0}'", args.Text);
+			//Debug.Console(_debugVerbose, this, "OnLineRecieved args.Text: '{0}'", args.Text);
 			_heartbeatTracker = 0;
 
 			if (string.IsNullOrEmpty(args.Text))
@@ -514,6 +569,7 @@ namespace ConvergePro2DspPlugin
 			try
 			{
 				Debug.Console(_debugVerbose, this, "OnLineRecieved args.Text: '{0}'", args.Text);
+				
 				_commRxQueue.Enqueue(new ProcessStringMessage(args.Text, ProcessResponse));
 			}
 			catch (Exception ex)
@@ -531,38 +587,54 @@ namespace ConvergePro2DspPlugin
 		{
 			try
 			{
-				var data = response.Split(' ').ToList();
-				if (data == null)
+				Debug.Console(_debugVerbose, this, "ProcessResponse: '{0}'", response);
+
+				// => BOX MAIN_DSP UNIT SN 0000-0000-00<LF><CR>
+				// => EP MyChannel LEVEL GAIN -5.0<LF><CR>
+				// => EP MyCHannel LEVEL MUTE 2<LF><CR>
+				// => Error Invalid Paramter(s)<LF><CR>
+				var expression =
+					new Regex(
+						@"^=>\s*(?<CommandType>\w+)\s+(?<ChannelName>\w+)\s+(?<BlackName>\w+)\s+(?<ParameterName>\w+)(?:\s+(?<Value>[\w\-\.\s]+))?",
+						RegexOptions.None);
+				var results = expression.Match(response);
+				if (!results.Success)
 				{
-					Debug.Console(_debugVerbose, this, "ProcessResponse: failed to process response");
+					Debug.Console(_debugVerbose, this, "ProcessResponse: regex failed to find a matching pattern");
 					return;
 				}
 
-				var commandType = data[0];
-				var channelName = string.Format("{0} {1}", data[1], data[2]);
-				var blockNumber = data[3];
-				var parameterName = data[4];
-				var value = data[5];
+				Debug.Console(_debugVerbose, this, "ProcessRsponse: results.Groups.Count == {0}", results.Groups.Count);
 
-				//var isLevel = data.Any(d => d.Equals("LEVEL"));
-				//var pnIndex = data.IndexOf("LEVEL");
-				
-				var tokens = response.TokenizeParams(' ');
-				using (var parameters = tokens.GetEnumerator())
+				var commandType = results.Groups["CommandType"].Success
+					? results.Groups["CommandType"].Value
+					: string.Empty;
+
+				var channelName = results.Groups["ChannelName"].Success
+					? results.Groups["ChannelName"].Value
+					: string.Empty;
+
+				var blockName = results.Groups["BlackName"].Success
+					? results.Groups["BlackName"].Value
+					: string.Empty;
+
+				var parameterName = results.Groups["ParameterName"].Success
+					? results.Groups["ParameterName"].Value
+					: string.Empty;
+
+				var value = results.Groups["Value"].Success
+					? results.Groups["Value"].Value
+					: string.Empty;
+
+				if (string.IsNullOrEmpty(commandType) || commandType.Equals("Error"))
 				{
-					commandType = parameters.Next();
-					channelName = parameters.Next();
-					if (parameters.NextEquals("LEVEL", StringComparison.OrdinalIgnoreCase) ||
-						parameters.NextEquals("INQUIRE", StringComparison.InvariantCultureIgnoreCase))
-					{
-						parameterName = parameters.Next();
-					}
-					value = parameters.Next();
+					Debug.Console(0, this, "ProcessResponse: {0}", response.Replace("=>","").Trim());
+					return;
 				}
-
-				Debug.Console(_debugVerbose, this, "ProcessResponse: [{0}, {1}, {2}, {3}]",
-					commandType, channelName, parameterName, value);
 				
+				Debug.Console(_debugVerbose, this, "ProcessResponse: CommandType-'{0}', ChannelName-'{1}', BlockName-'{2}', ParameterName-'{3}', Value-'{4}'",
+					commandType, channelName, blockName, parameterName, value);
+
 				switch (commandType)
 				{
 					case "EP":
@@ -621,8 +693,8 @@ namespace ConvergePro2DspPlugin
 						}
 					default:
 						{
-							Debug.Console(_debugNotice, this, "ProcessResponse: unhandled response '{0} {1} {2} {3}'",
-								commandType, channelName, parameterName, value);
+							Debug.Console(_debugVerbose, this, "ProcessResponse: Unhandled Response\r\tCommandType-'{0}', ChannelName-'{1}', BlockName-'{2}', ParameterName-'{3}', Value-'{4}'",
+								commandType, channelName, blockName, parameterName, value);
 							break;
 						}
 				}
@@ -640,17 +712,18 @@ namespace ConvergePro2DspPlugin
 		/// Sends a command to the DSP (with delimiter appended)
 		/// </summary>
 		/// <param name="s">Command to send</param>
-		public void SendLine(string s)
+		public void SendText(string s)
 		{
 			Debug.Console(_debugNotice, this, "TX: '{0}'", s);
-			_comm.SendText(s + CommCommandDelimter);
+			var text = string.Format("{0}{1}", s, CommCommandDelimter);
+			_comm.SendText(text);
 		}
 
 		// Checks the comm health, should be called by comm monitor only. If no heartbeat has been detected recently, will clear the queue and log an error.
 		private void HeartbeatPoll()
 		{
 			_heartbeatTracker++;
-			SendLine(string.Format("BOX {0} UNIT SN", BoxName));
+			SendText(string.Format("BOX {0} UNIT SN", BoxName));
 			CrestronEnvironment.Sleep(1000);
 
 			if (_heartbeatTracker > 0)
@@ -695,7 +768,7 @@ namespace ConvergePro2DspPlugin
 		/// <param name="preset">Preset Name</param>
 		public void RunPresetByString(string preset)
 		{
-			SendLine(string.Format("MCCF {1}", preset));
+			SendText(string.Format("MCCF {1}", preset));
 		}
 
 		#region DebugLevels

@@ -212,39 +212,39 @@ namespace ConvergePro2DspPlugin
 
 			foreach (var notification in notifications)
 			{
-				var cmd = string.Format("EP UA {0} NOTIFCATION {1}", Config.EndpointNumber, notification);
-				Parent.SendLine(cmd);	
+				var cmd = string.Format("EP UA {0} NOTIFCATION {1}", Config.ChannelName, notification);
+				Parent.SendText(cmd);	
 			}
 		}
 
 		public void Dial(string number)
 		{
 			var cmd = string.Format("EP UA {0} KEY KEY_CALL {1}", Config.ChannelName, number);
-			Parent.SendLine(cmd);
+			Parent.SendText(cmd);
 		}
 
 		public void EndCall(CodecActiveCallItem activeCall)
 		{
 			var cmd = string.Format("EP UA {0} KEY KEY_HOOK 0", Config.ChannelName);
-			Parent.SendLine(cmd);
+			Parent.SendText(cmd);
 		}
 
 		public void EndAllCalls()
 		{
 			var cmd = string.Format("EP UA {0} KEY KEY_HOOK 0", Config.ChannelName);
-			Parent.SendLine(cmd);
+			Parent.SendText(cmd);
 		}
 
 		public void AcceptCall(CodecActiveCallItem item)
 		{
 			var cmd = string.Format("EP UA {0} KEY KEY_HOOK 1", Config.ChannelName);
-			Parent.SendLine(cmd);
+			Parent.SendText(cmd);
 		}
 
 		public void RejectCall(CodecActiveCallItem item)
 		{
 			var cmd = string.Format("EP UA {0} KEY KEY_REJECT 1", Config.ChannelName);
-			Parent.SendLine(cmd);
+			Parent.SendText(cmd);
 		}
 
 		public void SendDtmf(string digit)
@@ -338,12 +338,12 @@ namespace ConvergePro2DspPlugin
 				CrestronInvoke.BeginInvoke(b =>
 				{
 					var cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_PRESSED {1}", ChannelName, keypadTag);
-					Parent.SendLine(cmdToSend);
+					Parent.SendText(cmdToSend);
 
 					Thread.Sleep(250);
 
 					cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_RELEASED {1}", ChannelName, keypadTag);
-					Parent.SendLine(cmdToSend);
+					Parent.SendText(cmdToSend);
 
 					PollKeypad();
 				});
@@ -357,7 +357,7 @@ namespace ConvergePro2DspPlugin
 		private void PollKeypad()
 		{
 			Thread.Sleep(50);
-			Parent.SendLine(string.Format("EP {0} INQUIRE DIGITS_DIALED_SINCE_OFF_HOOK", ChannelName));
+			Parent.SendText(string.Format("EP {0} INQUIRE DIGITS_DIALED_SINCE_OFF_HOOK", ChannelName));
 		}
 
 		/// <summary>

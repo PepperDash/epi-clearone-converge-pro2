@@ -51,8 +51,22 @@ namespace ConvergePro2DspPlugin
 	/// <summary>
 	/// Converge Pro 2 Level Control Block Configuration 
 	/// </summary>
-	public class ConvergePro2DspLevelControlBlockConfig : ConvergePro2BaseConfigProperties
+	public class ConvergePro2DspLevelControlBlockConfig
 	{
+		[JsonProperty("label")]
+		public string Label { get; set; }
+
+		[JsonProperty("channelName")]
+		public string ChannelName { get; set; }
+
+		[JsonProperty("blockName")]
+		public string BlockName { get; set; }
+
+		[JsonProperty("levelParameter")]
+		public string LevelParameter { get; set; }
+
+		[JsonProperty("muteParamter")]
+		public string MuteParameter { get; set; }
 		
 		[JsonProperty("disabled")]
 		public bool Disabled { get; set; }
@@ -76,8 +90,23 @@ namespace ConvergePro2DspPlugin
 	/// <summary>
 	/// Converge Pro 2 Dialer configuration
 	/// </summary>
-	public class ConvergePro2DspDialerConfig : ConvergePro2BaseConfigProperties
+	public class ConvergePro2DspDialerConfig
 	{
+		[JsonProperty("label")]
+		public string Label { get; set; }
+
+		[JsonProperty("channelName")]
+		public string ChannelName { get; set; }
+
+		[JsonProperty("blockName")]
+		public string BlockName { get; set; }
+
+		[JsonProperty("levelParameter")]
+		public string LevelParameter { get; set; }
+
+		[JsonProperty("muteParamter")]
+		public string MuteParameter { get; set; }
+
 		[JsonProperty("ClearOnHangup")]
 		public bool ClearOnHangup { get; set; }
 	}
@@ -93,10 +122,13 @@ namespace ConvergePro2DspPlugin
 		[JsonProperty("channelName")]
 		public string ChannelName { get; set; }
 		
-		[JsonProperty("endpointType")]
-		public string EndpointType { get; set; }
+		[JsonProperty("blockName")]
+		public string BlockName { get; set; }
 
-		[JsonProperty("endpointNumber")]
-		public string EndpointNumber { get; set; }
+		[JsonProperty("levelParameter")]
+		public string LevelParameter { get; set; }
+
+		[JsonProperty("muteParamter")]
+		public string MuteParameter { get; set; }
 	}
 }
