@@ -95,6 +95,9 @@ namespace ConvergePro2DspPlugin
 		[JsonProperty("label")]
 		public string Label { get; set; }
 
+		[JsonProperty("isVoip")]
+		public bool IsVoip { get; set; }
+
 		[JsonProperty("channelName")]
 		public string ChannelName { get; set; }
 

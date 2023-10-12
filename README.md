@@ -272,58 +272,62 @@ Configuration using Channel Name
 
 The selection below documents the digital, analog, and serial joins used by the SiMPL EISC. Update the bridge join maps as needed for the plugin being developed.
 
-# Converge Pro 2 DSP Join Map
+### ConvergePro2DspJoinMap
 
-## Digitals
+#### Digitals
 
-| Join Number | Join Span | Description                        | Type                | Capabilities |
-| ----------- | --------- | ---------------------------------- | ------------------- | ------------ |
-| 1           | 1         | Is Online                          | Digital             | FromSIMPL    |
-| 100         | 100       | Preset Recall                      | Digital             | FromSIMPL    |
-| 200         | 200       | ControlTag Visible                 | Digital             | FromSIMPL    |
-| 400         | 200       | ControlTag Mute Toggle             | Digital             | ToFromSIMPL  |
-| 600         | 200       | ControlTag Mute On                 | Digital             | ToSIMPL      |
-| 800         | 200       | ControlTag Mute Off                | Digital             | ToSIMPL      |
-| 1000        | 200       | ControlTag Volume Up               | Digital             | FromSIMPL    |
-| 1200        | 200       | ControlTag Volume Down             | Digital             | FromSIMPL    |
-| 3100        | 1         | Call Incoming                      | Digital             | ToSIMPL      |
-| 3106        | 1         | Answer Incoming Call               | Digital             | FromSIMPL    |
-| 3107        | 1         | End Call                           | Digital             | FromSIMPL    |
-| 3110        | 10        | Keypad Digits 0-9                  | Digital             | FromSIMPL    |
-| 3120        | 1         | Keypad *                           | Digital             | FromSIMPL    |
-| 3121        | 1         | Keypad #                           | Digital             | FromSIMPL    |
-| 3122        | 1         | Keypad Clear                       | Digital             | FromSIMPL    |
-| 3123        | 1         | Keypad Backspace                   | Digital             | FromSIMPL    |
-| 3124        | 1         | Keypad Dial and Feedback           | Digital             | ToFromSIMPL  |
-| 3125        | 1         | Auto Answer On and Feedback        | Digital             | ToFromSIMPL  |
-| 3126        | 1         | Auto Answer Off and Feedback       | Digital             | ToFromSIMPL  |
-| 3127        | 1         | Auto Answer Toggle and On Feedback | Digital             | ToFromSIMPL  |
-| 3129        | 1         | On Hook Set and Feedback           | Digital             | ToFromSIMPL  |
-| 3130        | 1         | Off Hook Set and Feedback          | Digital             | ToFromSIMPL  |
-| 3132        | 1         | Do Not Disturb Toggle and Feedback | Digital             | ToFromSIMPL  |
-| 3133        | 1         | Do Not Disturb On Set and Feedback | Digital             | ToFromSIMPL  |
-| 3134        | 1         | Do Not Disturb Of Set and Feedback | Digital             | ToFromSIMPL  |
+| Join Number | Join Span | Description                        | Type    | Capabilities |
+| ----------- | --------- | ---------------------------------- | ------- | ------------ |
+| 1           | 1         | Is Online                          | Digital | FromSIMPL    |
+| 101         | 100       | Preset Recall                      | Digital | FromSIMPL    |
+| 201         | 200       | ControlTag Visible                 | Digital | FromSIMPL    |
+| 401         | 200       | ControlTag Mute Toggle             | Digital | ToFromSIMPL  |
+| 601         | 200       | ControlTag Mute On                 | Digital | ToSIMPL      |
+| 801         | 200       | ControlTag Mute Off                | Digital | ToSIMPL      |
+| 1001        | 200       | ControlTag Volume Up               | Digital | FromSIMPL    |
+| 1201        | 200       | ControlTag Volume Down             | Digital | FromSIMPL    |
+| 3100        | 1         | Call Incoming                      | Digital | ToSIMPL      |
+| 3106        | 1         | Answer Incoming Call               | Digital | FromSIMPL    |
+| 3107        | 1         | End Call                           | Digital | FromSIMPL    |
+| 3110        | 10        | Keypad Digits 0-9                  | Digital | FromSIMPL    |
+| 3120        | 1         | Keypad *                           | Digital | FromSIMPL    |
+| 3121        | 1         | Keypad #                           | Digital | FromSIMPL    |
+| 3122        | 1         | Keypad Clear                       | Digital | FromSIMPL    |
+| 3123        | 1         | Keypad Backspace                   | Digital | FromSIMPL    |
+| 3124        | 1         | Keypad Dial and Feedback           | Digital | ToFromSIMPL  |
+| 3125        | 1         | Auto Answer On and Feedback        | Digital | ToFromSIMPL  |
+| 3126        | 1         | Auto Answer Off and Feedback       | Digital | ToFromSIMPL  |
+| 3127        | 1         | Auto Answer Toggle and On Feedback | Digital | ToFromSIMPL  |
+| 3129        | 1         | On Hook Set and Feedback           | Digital | ToFromSIMPL  |
+| 3130        | 1         | Off Hook Set and Feedback          | Digital | ToFromSIMPL  |
+| 3132        | 1         | Do Not Disturb Toggle and Feedback | Digital | ToFromSIMPL  |
+| 3133        | 1         | Do Not Disturb On Set and Feedback | Digital | ToFromSIMPL  |
+| 3134        | 1         | Do Not Disturb Of Set and Feedback | Digital | ToFromSIMPL  |
 
-## Analogs
+#### Analogs
 
-| Join Number | Join Span | Description         | Type                | Capabilities |
-| ----------- | --------- | ------------------- | ------------------- | ------------ |
-| 200         | 200       | ControlTag Volume   | Analog              | ToFromSIMPL  |
-| 400         | 200       | ControlTag Type     | Analog              | ToSIMPL      |
-| 3100        | 1         | Call State Feedback | Analog              | ToSIMPL      |
+| Join Number | Join Span | Description                                  | Type   | Capabilities |
+| ----------- | --------- | -------------------------------------------- | ------ | ------------ |
+| 1           | 1         | Device communication monitor status feedback | Analog | ToSIMPL      |
+| 2           | 1         | Device socket status feedback                | Analog | ToSIMPL      |
+| 201         | 200       | ControlTag Volume                            | Analog | ToFromSIMPL  |
+| 401         | 200       | ControlTag Type                              | Analog | ToSIMPL      |
+| 3100        | 1         | Call State Feedback                          | Analog | ToSIMPL      |
 
-## Serials
+#### Serials
 
-| Join Number | Join Span | Description                   | Type                | Capabilities |
-| ----------- | --------- | ----------------------------- | ------------------- | ------------ |
-| 100         | 100       | Preset Name                   | Serial              | ToSIMPL      |
-| 200         | 200       | ControlTag Name               | Serial              | ToSIMPL      |
-| 3100        | 1         | Dial String Send and Feedback | Serial              | ToFromSIMPL  |
-| 3101        | 1         | Dialer Label                  | Serial              | ToSIMPL      |
-| 3102        | 1         | Last Number Dialed Feedback   | Serial              | ToSIMPL      |
-| 3104        | 1         | Caller ID Number              | Serial              | ToSIMPL      |
-| 3105        | 1         | Caller ID Name                | Serial              | ToSIMPL      |
-| 3106        | 1         | This Line's Number            | Serial              | ToSIMPL      |
+| Join Number | Join Span | Description                   | Type   | Capabilities |
+| ----------- | --------- | ----------------------------- | ------ | ------------ |
+| 1           | 1         | Device Name                   | Serial | ToSIMPL      |
+| 101         | 100       | Preset Name                   | Serial | ToSIMPL      |
+| 201         | 200       | Channel Name                  | Serial | ToSIMPL      |
+| 3100        | 1         | Dial String Send and Feedback | Serial | ToFromSIMPL  |
+| 3101        | 1         | Dialer Label                  | Serial | ToSIMPL      |
+| 3102        | 1         | Last Number Dialed Feedback   | Serial | ToSIMPL      |
+| 3104        | 1         | Caller ID Number              | Serial | ToSIMPL      |
+| 3105        | 1         | Caller ID Name                | Serial | ToSIMPL      |
+| 3106        | 1         | This Line's Number            | Serial | ToSIMPL      |
+
 
 ## DEVJSON Commands
 ```json

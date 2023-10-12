@@ -100,10 +100,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConvergePro2BridgeJoinMap.cs" />
-    <Compile Include="ConvergePro2DspDialer.cs" />
+    <Compile Include="ConvergePro2Dialer.cs" />
     <Compile Include="ConvergePro2DspPropertiesConfg.cs" />
     <Compile Include="ConvergePro2DspFactory.cs" />
-    <Compile Include="ConvergePro2VoIPDialer.cs" />
     <Compile Include="DSPObjects\ConvergePro2ControlPoint.cs" />
     <Compile Include="DSPObjects\ConvergePro2LevelControl.cs" />
     <Compile Include="Extensions.cs" />

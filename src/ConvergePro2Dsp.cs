@@ -38,7 +38,7 @@ namespace ConvergePro2DspPlugin
 		public string BoxName { get; set; }
 		public Dictionary<string, ConvergePro2DspLevelControl> LevelControlPoints { get; private set; }
 		public Dictionary<string, ConvergePro2DspPresetConfig> Presets = new Dictionary<string, ConvergePro2DspPresetConfig>();
-		public Dictionary<string, ConvergePro2DspDialer> Dialers { get; set; }
+		public Dictionary<string, ConvergePro2Dialer> Dialers { get; set; }
 
 		public bool ShowHexResponse { get; set; }
 
@@ -93,7 +93,7 @@ namespace ConvergePro2DspPlugin
 
 				LevelControlPoints = new Dictionary<string, ConvergePro2DspLevelControl>();
 				Presets = new Dictionary<string, ConvergePro2DspPresetConfig>();
-				Dialers = new Dictionary<string, ConvergePro2DspDialer>();
+				Dialers = new Dictionary<string, ConvergePro2Dialer>();
 
 				Debug.Console(_debugVerbose, this, new string('*', 50));
 				Debug.Console(_debugVerbose, this, new string('*', 50));
@@ -330,12 +330,12 @@ namespace ConvergePro2DspPlugin
 				{
 					var keypadIndex = i;
 					var joinOffset = keypadIndex + dialerLineOffset;
-					trilist.SetSigTrueAction((uint)(joinMap.KeypadNumeric.JoinNumber + joinOffset), () => dialer.SendKeypad((ConvergePro2DspDialer.EKeypadKeys)(keypadIndex)));
+					trilist.SetSigTrueAction((uint)(joinMap.KeypadNumeric.JoinNumber + joinOffset), () => dialer.SendKeypad((ConvergePro2Dialer.EKeypadKeys)(keypadIndex)));
 				}
-				trilist.SetSigTrueAction((joinMap.KeypadStar.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Star));
-				trilist.SetSigTrueAction((joinMap.KeypadPound.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Pound));
-				trilist.SetSigTrueAction((joinMap.KeypadClear.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Clear));
-				trilist.SetSigTrueAction((joinMap.KeypadBackspace.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2DspDialer.EKeypadKeys.Backspace));
+				trilist.SetSigTrueAction((joinMap.KeypadStar.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2Dialer.EKeypadKeys.Star));
+				trilist.SetSigTrueAction((joinMap.KeypadPound.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2Dialer.EKeypadKeys.Pound));
+				trilist.SetSigTrueAction((joinMap.KeypadClear.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2Dialer.EKeypadKeys.Clear));
+				trilist.SetSigTrueAction((joinMap.KeypadBackspace.JoinNumber + dialerLineOffset), () => dialer.SendKeypad(ConvergePro2Dialer.EKeypadKeys.Backspace));
 				trilist.SetSigTrueAction(joinMap.KeypadDial.JoinNumber + dialerLineOffset, dialer.Dial);
 
 				// dial & call controls
@@ -439,7 +439,7 @@ namespace ConvergePro2DspPlugin
 			{
 				foreach (var dialerConfig in _config.Dialers)
 				{
-					Dialers.Add(dialerConfig.Key, new ConvergePro2DspDialer(dialerConfig.Key, dialerConfig.Value, this));
+					Dialers.Add(dialerConfig.Key, new ConvergePro2Dialer(dialerConfig.Key, dialerConfig.Value, this));
 
 					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (ChannelName:'{2}', BlockName:'{3}', MuteParameter:'{4}')",
 						dialerConfig.Key, dialerConfig.Value.Label, dialerConfig.Value.ChannelName, dialerConfig.Value.BlockName, dialerConfig.Value.MuteParameter);
@@ -569,8 +569,7 @@ namespace ConvergePro2DspPlugin
 			try
 			{
 				Debug.Console(_debugVerbose, this, "OnLineRecieved args.Text: '{0}'", args.Text);
-				
-				_commRxQueue.Enqueue(new ProcessStringMessage(args.Text, ProcessResponse));
+				_commRxQueue.Enqueue(new ProcessStringMessage(args.Text.Trim(), ProcessResponse));
 			}
 			catch (Exception ex)
 			{
@@ -715,6 +714,8 @@ namespace ConvergePro2DspPlugin
 		/// <param name="s">Command to send</param>
 		public void SendText(string s)
 		{
+			if (s == null) return;
+
 			Debug.Console(_debugNotice, this, "TX: '{0}'", s);
 			var text = string.Format("{0}{1}", s, CommCommandDelimter);
 			_comm.SendText(text);
