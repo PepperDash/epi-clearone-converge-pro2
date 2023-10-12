@@ -156,46 +156,27 @@ Type: `convergepro2dsp`
 
 ### Level Control Blocks Configuration
 
-Configuration using EPT, EPN, BN
-
 ```json
 {
 	"properties": {
 		"levelControlBlocks": {
-			"fader1": {                            
-				"label": "Room",
-				"endpointType": "",				
-				"endpointNumber": "",
-				"blockNumber": "",
+			"fader-main": {
+				"label": "Main",
+				"channelName": "SPKR_ZN_1",
+				"blockName": "LEVEL",
+				"levelParameter": "GAIN",
+				"muteParameter": "MUTE",
 				"disabled": false,
 				"hasLevel": true,
 				"hasMute": true,
-				"isMic": false
+				"isMic": false,
+				"useAbsoluteValue": false,
+				"unmuteOnVolChange": true
 			}
 		}
 	}
 }
 ```
-
-Configuration using Channel Name
-
-```json
-{
-	"properties": {
-		"levelControlBlocks": {
-			"fader1": {                            
-				"label": "Room",
-				"channelName": "ROOM_LEVEL",
-				"disabled": false,
-				"hasLevel": true,
-				"hasMute": true,
-				"isMic": false
-			}
-		}
-	}
-}
-```
-
 ### Presets Configuration
 
 ```json
@@ -227,15 +208,13 @@ Configuration using Channel Name
 ```json
 {
 	"properties": {
-		"dialers": {
-			"dialer1": {
-				"label": "Dialer 1",
-				"channelName": "DIALER1",
-				"endpointType": "TELCO_RX",
-				"endpointNumber": "101",
-				"blockNumber": "",
-				"clearOnHangup": true
-			}
+		"dialers": { 
+			"label": "Dialer", 
+			"channelName": "VOIP_Rx",
+			"isVoip": true, 
+			"clearOnHangup": true, 
+			"levelParameter": "TELCO_RX", 
+			"muteParameter": "MUTE"
 		}
 	}
 }
