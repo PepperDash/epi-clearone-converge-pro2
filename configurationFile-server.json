@@ -1,0 +1,96 @@
+{
+	"template": {
+		"info": {
+			"comment": "",
+			"requiredControlSofwareVersion": "",
+			"systemType": "huddle",
+			"lastModifiedDate": "2018-07-09T20:00:47.873Z",
+			"lastUid": 23,
+			"processorType": "vc4"
+		},
+		"devices": [
+			{
+				"key": "processor",
+				"group": "processor",
+				"uid": 0,
+				"supportsCompliance": true,
+				"type": "vc4",
+				"properties": {},
+				"name": "vc4"
+			},
+			{
+				"key": "dsp1",
+				"name": "ClearOne Converge Pro 2",
+				"type": "convergepro2dsp",
+				"group": "plugin",
+				"properties": {
+					"control": {
+						"method": "tcpip",
+						"controlPortDevKey": "processor",
+						"controlPortNumber": 1,
+						"comParams": {
+							"protocol": "RS232",
+							"baudRate": 57600,
+							"dataBits": 8,
+							"stopBits": 1,
+							"parity": "None",
+							"hardwareHandshake": "None",
+							"softwareHandshake": "None"
+						},
+						"tcpSshProperties": {
+							"address": "192.168.10.51",
+							"port": 23,
+							"username": "clearone",
+							"password": "converge",
+							"autoReconnect": true,
+							"autoReconnectIntervalMs": 10000
+						}
+					},
+					"communicationMonitor": {
+						"pollInterval": 60000,
+						"timeToWarning": 180000,
+						"timeToError": 300000
+					},
+					"boxName": "BOX1",
+					"levelControlBlocks": {},
+					"presets": {},
+					"dialers": {
+						"dialer1": {
+							"label": "Dialer 1",
+							"channelName": "DIALER1",
+							"endpointType": "TELCO_RX",
+							"endpointNumber": "101",
+							"clearOnHangup": true
+						}
+					}
+				}
+			},
+			{
+				"key": "dsp1-bridge",
+				"uid": 11,
+				"name": "DSP Bridge",
+				"group": "api",
+				"type": "vcEiscApiAdvanced",
+				"properties": {					
+					"control": {
+						"ipid": "e2",
+						"method": "ipid",
+						"roomId": "DSPSIMPL"
+					},
+					"devices": [
+						{
+							"deviceKey": "dsp1",
+							"joinStart": 1
+						}
+					]
+				}
+			}
+		],
+		"rooms": [],
+		"sourceLists": {},
+		"tieLines": []
+	},
+	"system": {},
+	"template_url": "",
+	"system_url": ""
+}
