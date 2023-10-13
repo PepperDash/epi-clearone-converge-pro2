@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.CrestronThread;
 using PepperDash.Core;
@@ -7,7 +8,16 @@ using PepperDash.Essentials.Devices.Common.Codec;
 
 namespace ConvergePro2DspPlugin
 {
-	public class ConvergePro2DspDialer : IHasDialer, IKeyed
+	/// <summary>
+	/// Telco Dialer
+	/// </summary>
+	/// <remarks>
+	/// API 
+	/// 2.4.22 TELCO_RX - PDF Page 251
+	/// 2.4.23 TELCO_TX - PDF Page 267
+	/// 2.4.24 UA - PDF Page 269
+	/// </remarks>
+	public class ConvergePro2Dialer : IHasDialer, IKeyed
 	{
 		/// <summary>
 		/// Dialer Key
@@ -20,10 +30,11 @@ namespace ConvergePro2DspPlugin
 		public ConvergePro2Dsp Parent { get; private set; }
 
 		public string Label { get; private set; }
-		public bool ClearOnHangup { get; private set; }
 		public string ChannelName { get; private set; }
-		public string EndpointType { get; private set; }
-		public string EndpointNumber { get; private set; }
+		public string BlockName { get; private set; }
+		public string LevelParameter { get; private set; }
+		public string MuteParameter { get; private set; }
+		public bool ClearOnHangup { get; private set; }
 
 		/// <summary>
 		/// Tracks if the dialer is VoIP or TELCO
@@ -174,37 +185,16 @@ namespace ConvergePro2DspPlugin
 		/// <param name="key"></param>
 		/// <param name="config">configuration object</param>
 		/// <param name="parent">parent dsp instance</param>
-		public ConvergePro2DspDialer(string key, ConvergePro2DspDialerConfig config, ConvergePro2Dsp parent)
+		public ConvergePro2Dialer(string key, ConvergePro2DspDialerConfig config, ConvergePro2Dsp parent)
 		{
 			Key = key;
-
-			//if (parent == null)
-			//{
-			//    Debug.Console(0, this, "Constructor: parent is null or empty");
-			//    return;
-			//}			
 			Parent = parent;
-
-			//if (config == null)
-			//{
-			//    Debug.Console(0, this, "Constructor: config is null or empty");
-			//    return;
-			//}
+			IsVoipDialer = config.IsVoip;
 			Label = config.Label;
-
-			if (string.IsNullOrEmpty(config.ChannelName))
-			{
-				EndpointType = config.EndpointType;
-				EndpointNumber = config.EndpointNumber;
-
-				IsVoipDialer = EndpointType.ToLower().Contains("voip");
-
-				ChannelName = string.Format("{0} {1}", EndpointType, EndpointNumber);
-			}
-			else
-			{
-				ChannelName = config.ChannelName;
-			}
+			ChannelName = config.ChannelName;
+			BlockName = config.BlockName;
+			LevelParameter = config.LevelParameter;
+			MuteParameter = config.MuteParameter;
 
 			ClearOnHangup = config.ClearOnHangup;
 
@@ -219,11 +209,44 @@ namespace ConvergePro2DspPlugin
 			Initialize(key, config);
 		}
 
+		/// <summary>
+		/// Initializes dialer
+		/// </summary>
+		/// <param name="key"></param>
+		/// <param name="config"></param>
 		public void Initialize(string key, ConvergePro2DspDialerConfig config)
 		{
 			Key = string.Format("{0}-{1}", Parent.Key, key);
 
 			DeviceManager.AddDevice(this);
+
+			if (IsVoipDialer) SubscribeToNotifications();
+		}
+
+		/// <summary>
+		/// Subscribe to VoIP notifications
+		/// </summary>
+		public void SubscribeToNotifications()
+		{
+			if (!IsVoipDialer) return;
+
+			var notifications = new List<string>
+			{
+                "STATE_CHANGE IDLE",
+				"STATE_CHANGE DIAL_TONE",
+				"STATE_CHANGE DIALING",
+				"STATE_CHANGE RINGING",
+				"INDICATION PL NA;HOLD;ON;RINGINING",
+                "ERROR ERROR_CALL_ACTIVE",
+                "REG_FAILED",
+                "REG_SUCCEED"                
+			};
+
+			foreach (var notification in notifications)
+			{
+				var cmd = string.Format("EP UA {0} NOTIFCATION {1}", ChannelName, notification);
+				Parent.SendText(cmd);
+			}
 		}
 
 		/// <summary>
@@ -255,7 +278,7 @@ namespace ConvergePro2DspPlugin
 		/// <param name="values"></param>
 		public void ParseResponse(string command, string[] values)
 		{
-			Debug.Console(1, this, "Parsing response {0} values: '{1}'", command, string.Join(", ", values));
+			Debug.Console(1, this, "ProceseResponse: {0} values: '{1}'", command, string.Join(", ", values));
 			switch (command)
 			{
 				case "AUTO_ANSWER_RINGS":
@@ -310,47 +333,17 @@ namespace ConvergePro2DspPlugin
 		}
 
 		/// <summary>
-		/// Subscription method
-		/// </summary>
-		/*		
-		public void Subscribe()
-		{
-			try
-			{
-				// Do subscriptions and blah blah
-				// This would be better using reflection JTA 2018-08-28
-				//PropertyInfo[] properties = Tags.GetType().GetCType().GetProperties();
-				var properties = Tags.GetType().GetCType().GetProperties();
-				//GetPropertyValues(Tags);
-
-				Debug.Console(2, "QscDspDialer Subscribe");
-				foreach (var prop in properties)
-				{
-					if (prop.Name.Contains("Tag") && !prop.Name.ToLower().Contains("keypad"))
-					{
-						var propValue = prop.GetValue(Tags, null) as string;
-						Debug.Console(2, "Property {0}, {1}, {2}\n", prop.GetType().Name, prop.Name, propValue);
-						SendSubscriptionCommand(propValue);
-					}
-				}
-			}
-			catch (Exception e)
-			{
-				Debug.Console(2, "QscDspDialer Subscription Error: '{0}'\n", e);
-			}
-
-			// SendSubscriptionCommand(, "1");
-			// SendSubscriptionCommand(config. , "mute", 500);
-		}
-		*/
-
-		/// <summary>
 		/// Toggles the do not disturb state
 		/// </summary>
 		public void DoNotDisturbToggle()
 		{
 			var dndStateInt = !DoNotDisturbState ? 1 : 0;
-			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE {1}", ChannelName, dndStateInt));
+
+			var cmd = IsVoipDialer
+				? null
+				: string.Format("EP {0} SETTINGS RING_ENABLE {1}", ChannelName, dndStateInt);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -358,7 +351,11 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void DoNotDisturbOn()
 		{
-			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE 0", ChannelName));
+			var cmd = IsVoipDialer
+				? null
+				: string.Format("EP {0} SETTINGS RING_ENABLE 0", ChannelName);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -366,7 +363,11 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void DoNotDisturbOff()
 		{
-			Parent.SendLine(string.Format("EP {0} SETTINGS RING_ENABLE 1", ChannelName));
+			var cmd = IsVoipDialer
+				? null
+				: string.Format("EP {0} SETTINGS RING_ENABLE 1", ChannelName);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -375,8 +376,12 @@ namespace ConvergePro2DspPlugin
 		public void AutoAnswerToggle()
 		{
 			var autoAnswerStateInt = !AutoAnswerState ? 1 : 0;
-			Parent.SendLine(string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS {1}",
-				ChannelName, autoAnswerStateInt));
+
+			var cmd = IsVoipDialer
+				? null
+				: string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS {1}", ChannelName, autoAnswerStateInt);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -384,8 +389,11 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void AutoAnswerOn()
 		{
-			Parent.SendLine(string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 1",
-				ChannelName));
+			var cmd = IsVoipDialer
+				? null
+				: string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 1", ChannelName);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -393,72 +401,11 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void AutoAnswerOff()
 		{
-			Parent.SendLine(string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 0",
-				ChannelName));
-		}
+			var cmd = IsVoipDialer
+				? null
+				: string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 0", ChannelName);
 
-		private void PollKeypad()
-		{
-			Thread.Sleep(50);
-			Parent.SendLine(string.Format("EP {0} INQUIRE DIGITS_DIALED_SINCE_OFF_HOOK", ChannelName));
-		}
-
-		/// <summary>
-		/// Sends the pressed keypad number
-		/// </summary>
-		/// <param name="button">Button pressed</param>
-		public void SendKeypad(EKeypadKeys button)
-		{
-			string keypadTag = null;
-			// Debug.Console(_debugVersbose, "DIaler {0} SendKeypad {1}", this.ke);
-			switch (button)
-			{
-				case EKeypadKeys.Num0: keypadTag = "0"; break;
-				case EKeypadKeys.Num1: keypadTag = "1"; break;
-				case EKeypadKeys.Num2: keypadTag = "2"; break;
-				case EKeypadKeys.Num3: keypadTag = "3"; break;
-				case EKeypadKeys.Num4: keypadTag = "4"; break;
-				case EKeypadKeys.Num5: keypadTag = "5"; break;
-				case EKeypadKeys.Num6: keypadTag = "6"; break;
-				case EKeypadKeys.Num7: keypadTag = "7"; break;
-				case EKeypadKeys.Num8: keypadTag = "8"; break;
-				case EKeypadKeys.Num9: keypadTag = "9"; break;
-				case EKeypadKeys.Pound: keypadTag = "#"; break;
-				case EKeypadKeys.Star: keypadTag = "*"; break;
-				case EKeypadKeys.Backspace:
-					{
-						if (DialString.Length > 0)
-						{
-							DialString = DialString.Remove(DialString.Length - 1, 1);
-						}
-						break;
-					}
-				case EKeypadKeys.Clear:
-					{
-						DialString = String.Empty;
-						break;
-					}
-			}
-
-			if (keypadTag != null && OffHook)
-			{
-				CrestronInvoke.BeginInvoke(b =>
-				{
-					var cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_PRESSED {1}", ChannelName, keypadTag);
-					Parent.SendLine(cmdToSend);
-
-					Thread.Sleep(500);
-
-					cmdToSend = string.Format("EP {0} KEY KEY_DIGIT_RELEASED {1}", ChannelName, keypadTag);
-					Parent.SendLine(cmdToSend);
-
-					PollKeypad();
-				});
-			}
-			else if (keypadTag != null && !OffHook)
-			{
-				DialString = DialString + keypadTag;
-			}
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -466,11 +413,17 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void Dial()
 		{
-			if (OffHook) EndAllCalls();
-			else
+			if (OffHook)
 			{
-				Parent.SendLine(string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, DialString));
+				EndAllCalls();
+				return;
 			}
+
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_CALL {1}", ChannelName, DialString)
+				: string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, DialString);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -486,8 +439,14 @@ namespace ConvergePro2DspPlugin
 			if (OffHook)
 			{
 				EndAllCalls();
+				return;
 			}
-			Parent.SendLine(string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, number));
+
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_CALL {1}", ChannelName, number)
+				: string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, number);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -496,21 +455,23 @@ namespace ConvergePro2DspPlugin
 		/// <param name="item">Use null as the parameter, use of CodecActiveCallItem is not implemented</param>
 		public void EndCall(CodecActiveCallItem item)
 		{
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", ChannelName));
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
+				: string.Format("EP {0} KEY KEY_HOOK 0", ChannelName);
+
+			Parent.SendText(cmd);
 		}
-		/// <summary>
-		/// Get Hook state 
-		/// </summary>
-		public void GetHookState()
-		{
-			Parent.SendLine(string.Format("EP {0} INQUIRE HOOK", ChannelName));
-		}
+
 		/// <summary>
 		/// Ends all connectted calls
 		/// </summary>
 		public void EndAllCalls()
 		{
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", ChannelName));
+			var cmd = IsVoipDialer
+				? string.Format("EP {0} KEY KEY_HOOK 0", ChannelName)
+				: string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -519,7 +480,12 @@ namespace ConvergePro2DspPlugin
 		public void AcceptCall()
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 1", ChannelName));
+
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_HOOK 1", ChannelName)
+				: string.Format("EP {0} KEY KEY_HOOK 1", ChannelName);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -529,7 +495,12 @@ namespace ConvergePro2DspPlugin
 		public void AcceptCall(CodecActiveCallItem item)
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 1", ChannelName));
+
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_HOOK 1", ChannelName)
+				: string.Format("EP {0} KEY KEY_HOOK 1", ChannelName);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -538,7 +509,12 @@ namespace ConvergePro2DspPlugin
 		public void RejectCall()
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", ChannelName));
+
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
+				: string.Format("EP {0} KEY KEY_REJECT 1", ChannelName);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -548,7 +524,24 @@ namespace ConvergePro2DspPlugin
 		public void RejectCall(CodecActiveCallItem item)
 		{
 			IncomingCall = false;
-			Parent.SendLine(string.Format("EP {0} KEY KEY_HOOK 0", ChannelName));
+
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
+				: string.Format("EP {0} KEY KEY_REJECT 1", ChannelName);
+
+			Parent.SendText(cmd);
+		}
+
+		/// <summary>
+		/// Get Hook state 
+		/// </summary>
+		public void GetHookState()
+		{
+			var cmd = IsVoipDialer
+				? null
+				: string.Format("EP {0} INQUIRE HOOK", ChannelName);
+
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>
@@ -602,6 +595,77 @@ namespace ConvergePro2DspPlugin
 			if (keypadTag == EKeypadKeys.Clear) return;
 
 			SendKeypad(keypadTag);
+		}
+
+		/// <summary>
+		/// Sends the pressed keypad number
+		/// </summary>
+		/// <param name="button">Button pressed</param>
+		public void SendKeypad(EKeypadKeys button)
+		{
+			string keypadTag = null;
+			// Debug.Console(_debugVersbose, "DIaler {0} SendKeypad {1}", this.ke);
+			switch (button)
+			{
+				case EKeypadKeys.Num0: keypadTag = "0"; break;
+				case EKeypadKeys.Num1: keypadTag = "1"; break;
+				case EKeypadKeys.Num2: keypadTag = "2"; break;
+				case EKeypadKeys.Num3: keypadTag = "3"; break;
+				case EKeypadKeys.Num4: keypadTag = "4"; break;
+				case EKeypadKeys.Num5: keypadTag = "5"; break;
+				case EKeypadKeys.Num6: keypadTag = "6"; break;
+				case EKeypadKeys.Num7: keypadTag = "7"; break;
+				case EKeypadKeys.Num8: keypadTag = "8"; break;
+				case EKeypadKeys.Num9: keypadTag = "9"; break;
+				case EKeypadKeys.Pound: keypadTag = "#"; break;
+				case EKeypadKeys.Star: keypadTag = "*"; break;
+				case EKeypadKeys.Backspace:
+					{
+						if (DialString.Length > 0)
+						{
+							DialString = DialString.Remove(DialString.Length - 1, 1);
+						}
+						break;
+					}
+				case EKeypadKeys.Clear:
+					{
+						DialString = String.Empty;
+						break;
+					}
+			}
+
+			if (keypadTag != null && OffHook)
+			{
+				CrestronInvoke.BeginInvoke(b =>
+				{
+					var cmdToSend = IsVoipDialer
+						? string.Format("EP UA {0} KEY KEY_DIGIT_PRESSED {1}", ChannelName, keypadTag)
+						: string.Format("EP {0} KEY KEY_DIGIT_PRESSED {1}", ChannelName, keypadTag);
+					Parent.SendText(cmdToSend);
+
+					Thread.Sleep(500);
+
+					cmdToSend = IsVoipDialer
+						? string.Format("EP UA {0} KEY KEY_DIGIT_RELEASED {1}", ChannelName, keypadTag)
+						: string.Format("EP {0} KEY KEY_DIGIT_RELEASED {1}", ChannelName, keypadTag);
+					Parent.SendText(cmdToSend);
+
+					PollKeypad();
+				});
+			}
+			else if (keypadTag != null && !OffHook)
+			{
+				DialString = DialString + keypadTag;
+			}
+		}
+
+		private void PollKeypad()
+		{
+			Thread.Sleep(50);
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} INQUIRE DIGITS_DIALED_SINCE_OFF_HOOK", ChannelName)
+				: string.Format("EP {0} INQUIRE DIGITS_DIALED_SINCE_OFF_HOOK", ChannelName);
+			Parent.SendText(cmd);
 		}
 
 		/// <summary>

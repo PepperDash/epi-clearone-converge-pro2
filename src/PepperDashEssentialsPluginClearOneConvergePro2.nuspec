@@ -9,7 +9,7 @@
     <owners>pepperdash</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <license type="expression">MIT</license>
-    <projectUrl>https://github.com/PepperDash/epi-dsp-clearone-converge-pro2</projectUrl>
+    <projectUrl>https://github.com/PepperDash/epi-clearone-convergePro2</projectUrl>
     <copyright>Copyright 2023</copyright>
     <description>ClearOne Converge Pro 2 DSP plugin used with PepperDash Essentials SIMPL# Pro application to expose functionality in SIMPL Windows using bridges.</description>
     <tags>crestron 3series 4series pepperdash pepperdashessentials essentials plugin epi</tags>

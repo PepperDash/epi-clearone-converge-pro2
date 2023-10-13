@@ -1,4 +1,5 @@
-﻿using PepperDash.Essentials.Devices.Common.DSP;
+﻿using PepperDash.Core;
+using PepperDash.Essentials.Devices.Common.DSP;
 
 namespace ConvergePro2DspPlugin
 {
@@ -10,20 +11,14 @@ namespace ConvergePro2DspPlugin
 		public string Key { get; protected set; }
 
 		/// <summary>
-		/// Control point friendly label
+		/// Control point label
 		/// </summary>
 		public string Label { get; set; }
 
-		/// <summary>
-		/// Control point channel name
-		/// </summary>
-		/// <remarks>
-		/// Channel name is a combination of the Endpiont Type (EPT), Endpoint Number (EPN), and Block Number (BN)
-		/// ex. "(EPT) (EPN) (BN)"
-		/// "MIC 101 LEVEL"
-		/// "PROC 203 LEVEL"		
-		/// </remarks>
 		public string ChannelName { get; set; }
+		public string BlockName { get; set; }
+		public string LevelParameter { get; set; }
+		public string MuteParameter { get; set; }
 
 		/// <summary>
 		/// Control point parent device
@@ -53,76 +48,25 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="label"></param>
-		/// <param name="ept">endpoint type</param>
-		/// <param name="epn">endpoint number</param>
-		/// <param name="bn">block number</param>
+		/// <param name="config"></param>
 		/// <param name="parent">parent dsp device</param>
-		protected ConvergePro2DspControlPoint(string label, string ept, string epn, string bn, ConvergePro2Dsp parent)
+		protected ConvergePro2DspControlPoint(ConvergePro2DspLevelControlBlockConfig config, ConvergePro2Dsp parent)
 		{
-			Label = label;
-			ChannelName = string.Format("{0} {1} {2}", ept, epn, bn);
-			Parent = parent;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="label"></param>
-		/// <param name="channelName">channel name</param>
-		/// <param name="parent">parent dsp device</param>
-		protected ConvergePro2DspControlPoint(string label, string channelName, ConvergePro2Dsp parent)
-		{
-			Label = label;
-			ChannelName = channelName;
+			Label = config.Label;
+			ChannelName = config.ChannelName;
+			BlockName = config.BlockName;
+			LevelParameter = config.LevelParameter;
+			MuteParameter = config.MuteParameter;
 			Parent = parent;
 		}
 
 		/// <summary>
 		/// Send full command with string array
 		/// </summary>
-		/// <param name="values"></param>
-		public virtual void SendFullCommand(string[] values)
+		/// <param name="cmd"></param>
+		public virtual void SendText(string cmd)
 		{
-			var cmdToSend = string.Join(" ", values);
-			Parent.SendLine(cmdToSend);
-		}
-
-		/// <summary>
-		/// Send full command with string value
-		/// </summary>
-		/// <param name="cmdType">EP, RAMP, ROOM, STACK, BOX, BEAM, BEAMREPORT, FACTORYDEFAULT, RESET, VERSION, METERPRESENT</param>		
-		/// <param name="values"></param>
-		public virtual void SendFullCommand(string cmdType, string[] values)
-		{
-			var cmdToSend = string.Format("{0} {1}", cmdType, string.Join(" ", values));
-			Parent.SendLine(cmdToSend);
-		}
-
-		/// <summary>
-		/// Send full command with int value
-		/// </summary>
-		/// <param name="cmdType">EP, RAMP, ROOM, STACK, BOX, BEAM, BEAMREPORT, FACTORYDEFAULT, RESET, VERSION, METERPRESENT</param>		
-		/// <param name="channelName">'ept epn bn'</param>
-		/// <param name="paramName"></param>
-		/// <param name="value">string value</param>
-		public virtual void SendFullCommand(string cmdType, string channelName, string paramName, string value)
-		{
-			var cmdToSend = string.Format("{0} {1} {2} {3}", cmdType, channelName, paramName, value);
-			Parent.SendLine(cmdToSend);
-		}
-
-		/// <summary>
-		/// Send full command with int value
-		/// </summary>
-		/// <param name="cmdType">EP, RAMP, ROOM, STACK, BOX, BEAM, BEAMREPORT, FACTORYDEFAULT, RESET, VERSION, METERPRESENT</param>		
-		/// <param name="channelName">'ept epn bn'</param>
-		/// <param name="paramName"></param>
-		/// <param name="value">integer value</param>
-		public virtual void SendFullCommand(string cmdType, string channelName, string paramName, int value)
-		{
-			var cmdToSend = string.Format("{0} {1} {2} {3}", cmdType, channelName, paramName, value);
-			Parent.SendLine(cmdToSend);
+			Parent.SendText(cmd);
 		}
 	}
 }

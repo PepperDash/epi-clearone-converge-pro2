@@ -24,7 +24,7 @@ namespace ConvergePro2DspPlugin
 		private float _minLevel;
 		private float _maxLevel;
 		private const float MinimumDb = -65;
-		private const float MaximumDb = 20;		
+		private const float MaximumDb = 20;
 
 		/// <summary>
 		/// Tracks mute state and fires feedback update
@@ -55,11 +55,11 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="key">instance key</param>
-		/// <param name="config">level control block configuration object</param>
-		/// <param name="parent">dsp parent isntance</param>
+		/// <blockName name="key">instance key</blockName>
+		/// <blockName name="config">level control block configuration object</blockName>
+		/// <blockName name="parent">dsp parent isntance</blockName>
 		public ConvergePro2DspLevelControl(string key, ConvergePro2DspLevelControlBlockConfig config, ConvergePro2Dsp parent)
-			: base(config.Label, config.EndpointType, config.EndpointNumber, config.BlockNumber, parent)
+			: base(config, parent)
 		{
 			_parent = parent;
 
@@ -72,8 +72,8 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Initializes this attribute based on config values and adds commands to the parent's queue.
 		/// </summary>
-		/// <param name="key">instance key</param>
-		/// <param name="config">level control block configuration object</param>
+		/// <blockName name="key">instance key</blockName>
+		/// <blockName name="config">level control block configuration object</blockName>
 		public void Initialize(string key, ConvergePro2DspLevelControlBlockConfig config)
 		{
 			Key = string.Format("{0}-{1}", Parent.Key, key);
@@ -103,8 +103,8 @@ namespace ConvergePro2DspPlugin
 		/// "EP MIC 103 LEVEL MUTE 0"
 		/// "EP PROC 201 LEVEL GAIN -5"
 		/// </example>
-		/// <param name="command"></param>
-		/// <param name="values"></param>
+		/// <blockName name="command"></blockName>
+		/// <blockName name="values"></blockName>
 		public void ParseResponse(string command, string[] values)
 		{
 			Debug.Console(1, this, "Parsing response {0} values: '{1}'", command, string.Join(", ", values));
@@ -149,13 +149,6 @@ namespace ConvergePro2DspPlugin
 						VolumeLevelFeedback.FireUpdate();
 						return;
 					}
-				//case "MINMAX":
-				//    {
-				//        _minLevel = float.Parse(values[0], CultureInfo.InvariantCulture);
-				//        _maxLevel = float.Parse(values[1], CultureInfo.InvariantCulture);
-				//        Debug.Console(1, this, "Level {0} new min: {1}, new max: {2}", Label, _minLevel, _maxLevel);
-				//        break;
-				//    }
 				case "MIN_GAIN":
 					{
 						_minLevel = float.Parse(values[0], CultureInfo.InvariantCulture);
@@ -171,9 +164,13 @@ namespace ConvergePro2DspPlugin
 			}
 		}
 
-		public void SimpleCommand(string param, string value)
+		public void SendText(string parameterName, string value)
 		{
-			SendFullCommand("EP", ChannelName, param, value);
+			var cmd = string.IsNullOrEmpty(value)
+				? string.Format("EP {0} {1} {2}", ChannelName, BlockName, parameterName) // get
+				: string.Format("EP {0} {1} {2} {3}", ChannelName, BlockName, parameterName, value); // set
+
+			base.SendText(cmd);
 		}
 
 		/// <summary>
@@ -187,12 +184,12 @@ namespace ConvergePro2DspPlugin
 
 		public void GetCurrentMin()
 		{
-			SendFullCommand("EP", new[] {ChannelName, "MIN_GAIN" });
+			SendText("MIN_GAIN", "");
 		}
 
 		public void GetCurrentMax()
 		{
-			SendFullCommand("EP", new[] { ChannelName, "MAX_GAIN" });
+			SendText("MAX_GAIN", "");
 		}
 
 		/// <summary>
@@ -200,7 +197,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void GetCurrentGain()
 		{
-			SendFullCommand("EP", new[] { ChannelName, "GAIN" });
+			SendText(LevelParameter, "");
 		}
 
 		/// <summary>
@@ -208,7 +205,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void GetCurrentMute()
 		{
-			SendFullCommand("EP", new[] { ChannelName, "MUTE" });
+			SendText(MuteParameter, "");
 		}
 
 		/// <summary>
@@ -216,7 +213,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void MuteOff()
 		{
-			SimpleCommand("MUTE", "0");
+			SendText(MuteParameter, "0");
 		}
 
 		/// <summary>
@@ -224,24 +221,7 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void MuteOn()
 		{
-			SimpleCommand("MUTE", "1");
-		}
-
-		/// <summary>
-		/// Sets the volume to a specified level
-		/// </summary>
-		/// <param name="level"></param>
-		public void SetVolume(ushort level)
-		{
-			Debug.Console(1, this, "Set Volume: {0}", level);
-			if (AutomaticUnmuteOnVolumeUp && _isMuted)
-			{
-				MuteOff();
-			}
-			var tempLevel = UseAbsoluteValue ? ScaleFull(level) : Scale(level);
-			Debug.Console(1, this, "Set Scaled Volume: {0}", tempLevel);
-
-			SimpleCommand("GAIN", tempLevel.ToString("N2"));
+			SendText(MuteParameter, "1");
 		}
 
 		/// <summary>
@@ -249,35 +229,56 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void MuteToggle()
 		{
-			SimpleCommand("MUTE", _isMuted ? "0" : "1");
+			SendText(MuteParameter, "2");
 		}
+
+		/// <summary>
+		/// Sets the volume to a specified level
+		/// </summary>
+		/// <blockName name="level"></blockName>
+		public void SetVolume(ushort level)
+		{
+			Debug.Console(1, this, "SetVolume: {0}", level);
+			if (AutomaticUnmuteOnVolumeUp && _isMuted)
+			{
+				MuteOff();
+			}
+			var tempLevel = UseAbsoluteValue 
+				? ScaleFull(level) 
+				: Scale(level);
+			Debug.Console(1, this, "SetVolume Scaled: {0}", tempLevel);
+
+			SendText(LevelParameter, string.Format("{0}", tempLevel));
+		}
+
+		
 
 		/// <summary>
 		/// Decrements volume level
 		/// </summary>
-		/// <param name="press"></param>
+		/// <blockName name="press"></blockName>
 		public void VolumeDown(bool press)
 		{
-			SendFullCommand("RAMP", new[] { ChannelName, _minLevel.ToString("N"), "2" });
+			SendText(LevelParameter, "-2 REL");
 		}
 
 		/// <summary>
 		/// Increments volume level
 		/// </summary>
-		/// <param name="press"></param>
+		/// <blockName name="press"></blockName>
 		public void VolumeUp(bool press)
 		{
 			if (AutomaticUnmuteOnVolumeUp && _isMuted)
 			{
 				MuteOff();
 			}
-			SendFullCommand("RAMP", new[] { ChannelName, _maxLevel.ToString("N"), "2" });
+			SendText(LevelParameter, "2 REL");
 		}
 
 		/// <summary>
 		/// Scales the input provided based on the min/max values from the DSP
 		/// </summary>
-		/// <param name="input"></param>
+		/// <blockName name="input"></blockName>
 		/// <returns></returns>
 		private double Scale(ushort input)
 		{
@@ -289,7 +290,7 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Scales the input provided based on the absolute min/max values
 		/// </summary>
-		/// <param name="input"></param>
+		/// <blockName name="input"></blockName>
 		/// <returns></returns>
 		private double ScaleFull(ushort input)
 		{
