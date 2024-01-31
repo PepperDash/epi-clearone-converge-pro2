@@ -423,6 +423,8 @@ namespace ConvergePro2DspPlugin
 				? string.Format("EP UA {0} KEY KEY_CALL {1}", ChannelName, DialString)
 				: string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, DialString);
 
+			Debug.Console(2, this, "Dial: cmd-'{0}'", cmd);
+
 			Parent.SendText(cmd);
 		}
 
