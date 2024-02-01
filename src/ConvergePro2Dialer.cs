@@ -343,6 +343,12 @@ namespace ConvergePro2DspPlugin
 				? null
 				: string.Format("EP {0} SETTINGS RING_ENABLE {1}", ChannelName, dndStateInt);
 
+			if (cmd == null)
+			{
+				Debug.Console(1, this, "DoNotDisturbToggle: Not implemented for VoIP Dialer");
+				return;
+			}
+
 			Parent.SendText(cmd);
 		}
 
@@ -355,6 +361,12 @@ namespace ConvergePro2DspPlugin
 				? null
 				: string.Format("EP {0} SETTINGS RING_ENABLE 0", ChannelName);
 
+			if (cmd == null)
+			{
+				Debug.Console(1, this, "DoNotDisturbOn: Not implemented for VoIP Dialer");
+				return;
+			}
+
 			Parent.SendText(cmd);
 		}
 
@@ -366,6 +378,12 @@ namespace ConvergePro2DspPlugin
 			var cmd = IsVoipDialer
 				? null
 				: string.Format("EP {0} SETTINGS RING_ENABLE 1", ChannelName);
+
+			if (cmd == null)
+			{
+				Debug.Console(1, this, "DoNotDisturbOff: Not implemented for VoIP Dialer");
+				return;
+			}
 
 			Parent.SendText(cmd);
 		}
@@ -381,6 +399,12 @@ namespace ConvergePro2DspPlugin
 				? null
 				: string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS {1}", ChannelName, autoAnswerStateInt);
 
+			if (cmd == null)
+			{
+				Debug.Console(1, this, "AutoAnswerToggle: Not implemented for VoIP Dialer");
+				return;
+			}
+
 			Parent.SendText(cmd);
 		}
 
@@ -393,6 +417,12 @@ namespace ConvergePro2DspPlugin
 				? null
 				: string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 1", ChannelName);
 
+			if (cmd == null)
+			{
+				Debug.Console(1, this, "AutoAnswerOn: Not implemented for VoIP Dialer");
+				return;
+			}
+
 			Parent.SendText(cmd);
 		}
 
@@ -404,6 +434,12 @@ namespace ConvergePro2DspPlugin
 			var cmd = IsVoipDialer
 				? null
 				: string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 0", ChannelName);
+
+			if (cmd == null)
+			{
+				Debug.Console(1, this, "AutoAnswerOff: Not implemented for VoIP Dialer");
+				return;
+			}
 
 			Parent.SendText(cmd);
 		}
@@ -542,6 +578,12 @@ namespace ConvergePro2DspPlugin
 			var cmd = IsVoipDialer
 				? null
 				: string.Format("EP {0} INQUIRE HOOK", ChannelName);
+
+			if (cmd == null)
+			{
+				Debug.Console(1, this, "GetHookState: Not implemented for VoIP Dialer");
+				return;
+			}
 
 			Parent.SendText(cmd);
 		}
