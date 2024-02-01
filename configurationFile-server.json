@@ -38,10 +38,10 @@
 							"softwareHandshake": "None"
 						},
 						"tcpSshProperties": {
-							"address": "192.168.10.51",
+							"address": "10.0.0.194",
 							"port": 23,
-							"username": "clearone",
-							"password": "converge",
+							"username": "admin",
+							"password": "password",
 							"autoReconnect": true,
 							"autoReconnectIntervalMs": 10000
 						}
@@ -51,17 +51,21 @@
 						"timeToWarning": 180000,
 						"timeToError": 300000
 					},
-					"boxName": "BOX1",
-					"levelControlBlocks": {},
-					"presets": {},
+					"boxName": "DSP1",
+					"levelControlBlocks": {
+						"fader-main"    : { "label": "Room"    , "channelName": "SPKR_ZN_1"    , "blockName": "LEVEL", "levelParameter": "GAIN", "muteParameter": "MUTE", "disabled": false, "hasLevel": true , "hasMute": true, "isMic": false, "useAbsoluteValue": false, "unmuteOnVolChange": true  },
+						"fader-call"    : { "label": "Program" , "channelName": "VOIP_1_TX"    , "blockName": "LEVEL", "levelParameter": "GAIN", "muteParameter": "MUTE", "disabled": false, "hasLevel": true , "hasMute": true, "isMic": false, "useAbsoluteValue": false, "unmuteOnVolChange": true  },
+						"fader-source"  : { "label": "Speech"  , "channelName": "PROG_PROCESS" , "blockName": "LEVEL", "levelParameter": "GAIN", "muteParameter": "MUTE", "disabled": false, "hasLevel": true , "hasMute": true, "isMic": false, "useAbsoluteValue": false, "unmuteOnVolChange": true  },
+						"fader-privacy" : { "label": ""        , "channelName": "MIC_PROCESS"  , "blockName": "LEVEL", "levelParameter": "GAIN", "muteParameter": "MUTE", "disabled": false, "hasLevel": false, "hasMute": true, "isMic": true , "useAbsoluteValue": false, "unmuteOnVolChange": false }
+					},
+					"presets": {
+						"preset1": { "label": "System On"     , "preset": "1" },
+						"preset2": { "label": "System Off"    , "preset": "2" },
+						"preset3": { "label": "Default Levels", "preset": "3" }
+					},
 					"dialers": {
-						"dialer1": {
-							"label": "Dialer 1",
-							"channelName": "DIALER1",
-							"endpointType": "TELCO_RX",
-							"endpointNumber": "101",
-							"clearOnHangup": true
-						}
+						"dialer1": { "label": "Dialer 1", "channelName": "101", "isVoip": true, "clearOnHangup": true },
+						"dialer2": { "label": "Dialer 2", "channelName": "201", "isVoip": true, "clearOnHangup": true }
 					}
 				}
 			},
@@ -72,16 +76,9 @@
 				"group": "api",
 				"type": "vcEiscApiAdvanced",
 				"properties": {					
-					"control": {
-						"ipid": "e2",
-						"method": "ipid",
-						"roomId": "DSPSIMPL"
-					},
+					"control": { "ipid": "a2", "method": "ipid", "roomId": "DSPSIMPL" },
 					"devices": [
-						{
-							"deviceKey": "dsp1",
-							"joinStart": 1
-						}
+						{ "deviceKey": "dsp1", "joinStart": 1 }
 					]
 				}
 			}
