@@ -192,10 +192,7 @@ namespace ConvergePro2DspPlugin
 			IsVoipDialer = config.IsVoip;
 			Label = config.Label;
 			ChannelName = config.ChannelName;
-			BlockName = config.BlockName;
-			LevelParameter = config.LevelParameter;
-			MuteParameter = config.MuteParameter;
-
+			
 			ClearOnHangup = config.ClearOnHangup;
 
 			LocalNumberFeedback = new StringFeedback(() => LocalNumber);
@@ -332,6 +329,19 @@ namespace ConvergePro2DspPlugin
 			}
 		}
 
+		private void SendText(string cmd)
+		{
+			if (string.IsNullOrEmpty(cmd))
+			{
+				Debug.Console(1, this, "SendText: cmd is null or empty");
+				return;
+			}
+
+			Debug.Console(2, this, "SendText: {0}", cmd);
+
+			Parent.SendText(cmd);
+		}
+
 		/// <summary>
 		/// Toggles the do not disturb state
 		/// </summary>
@@ -349,7 +359,7 @@ namespace ConvergePro2DspPlugin
 				return;
 			}
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -367,7 +377,7 @@ namespace ConvergePro2DspPlugin
 				return;
 			}
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -385,7 +395,7 @@ namespace ConvergePro2DspPlugin
 				return;
 			}
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -405,7 +415,7 @@ namespace ConvergePro2DspPlugin
 				return;
 			}
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -423,7 +433,7 @@ namespace ConvergePro2DspPlugin
 				return;
 			}
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -441,7 +451,7 @@ namespace ConvergePro2DspPlugin
 				return;
 			}
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -459,9 +469,7 @@ namespace ConvergePro2DspPlugin
 				? string.Format("EP UA {0} KEY KEY_CALL {1}", ChannelName, DialString)
 				: string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, DialString);
 
-			Debug.Console(2, this, "Dial: cmd-'{0}'", cmd);
-
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -484,7 +492,7 @@ namespace ConvergePro2DspPlugin
 				? string.Format("EP UA {0} KEY KEY_CALL {1}", ChannelName, number)
 				: string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, number);
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -497,7 +505,7 @@ namespace ConvergePro2DspPlugin
 				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
 				: string.Format("EP {0} KEY KEY_HOOK 0", ChannelName);
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -509,7 +517,7 @@ namespace ConvergePro2DspPlugin
 				? string.Format("EP {0} KEY KEY_HOOK 0", ChannelName)
 				: string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName);
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -523,7 +531,7 @@ namespace ConvergePro2DspPlugin
 				? string.Format("EP UA {0} KEY KEY_HOOK 1", ChannelName)
 				: string.Format("EP {0} KEY KEY_HOOK 1", ChannelName);
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -538,7 +546,7 @@ namespace ConvergePro2DspPlugin
 				? string.Format("EP UA {0} KEY KEY_HOOK 1", ChannelName)
 				: string.Format("EP {0} KEY KEY_HOOK 1", ChannelName);
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -552,7 +560,7 @@ namespace ConvergePro2DspPlugin
 				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
 				: string.Format("EP {0} KEY KEY_REJECT 1", ChannelName);
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -567,7 +575,7 @@ namespace ConvergePro2DspPlugin
 				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
 				: string.Format("EP {0} KEY KEY_REJECT 1", ChannelName);
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -585,7 +593,7 @@ namespace ConvergePro2DspPlugin
 				return;
 			}
 
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -685,14 +693,14 @@ namespace ConvergePro2DspPlugin
 					var cmdToSend = IsVoipDialer
 						? string.Format("EP UA {0} KEY KEY_DIGIT_PRESSED {1}", ChannelName, keypadTag)
 						: string.Format("EP {0} KEY KEY_DIGIT_PRESSED {1}", ChannelName, keypadTag);
-					Parent.SendText(cmdToSend);
+					SendText(cmdToSend);
 
 					Thread.Sleep(500);
 
 					cmdToSend = IsVoipDialer
 						? string.Format("EP UA {0} KEY KEY_DIGIT_RELEASED {1}", ChannelName, keypadTag)
 						: string.Format("EP {0} KEY KEY_DIGIT_RELEASED {1}", ChannelName, keypadTag);
-					Parent.SendText(cmdToSend);
+					SendText(cmdToSend);
 
 					PollKeypad();
 				});
@@ -709,7 +717,7 @@ namespace ConvergePro2DspPlugin
 			var cmd = IsVoipDialer
 				? string.Format("EP UA {0} INQUIRE DIGITS_DIALED_SINCE_OFF_HOOK", ChannelName)
 				: string.Format("EP {0} INQUIRE DIGITS_DIALED_SINCE_OFF_HOOK", ChannelName);
-			Parent.SendText(cmd);
+			SendText(cmd);
 		}
 
 		/// <summary>

@@ -408,11 +408,9 @@ namespace ConvergePro2DspPlugin
 			Debug.Console(_debugVerbose, this, new string('*', 50));
 			Debug.Console(_debugVerbose, this, new string('*', 50));
 			Debug.Console(_debugVerbose, this, "Creating DSP Objects");
-
+			
+			// levelControls
 			LevelControlPoints.Clear();
-			Presets.Clear();
-			Dialers.Clear();
-
 			if (_config.LevelControlBlocks != null)
 			{
 				foreach (var levelControlBlock in _config.LevelControlBlocks)
@@ -424,6 +422,8 @@ namespace ConvergePro2DspPlugin
 				}
 			}
 
+			// presets
+			Presets.Clear();
 			if (_config.Presets != null)
 			{
 				foreach (var preset in _config.Presets)
@@ -434,15 +434,17 @@ namespace ConvergePro2DspPlugin
 						preset.Key, preset.Value.Label, preset.Value.Preset);
 				}
 			}
-
+			
+			// dialers
+			Dialers.Clear();
 			if (_config.Dialers != null)
 			{
 				foreach (var dialerConfig in _config.Dialers)
 				{
 					Dialers.Add(dialerConfig.Key, new ConvergePro2Dialer(dialerConfig.Key, dialerConfig.Value, this));
 
-					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (ChannelName:'{2}', BlockName:'{3}', MuteParameter:'{4}')",
-						dialerConfig.Key, dialerConfig.Value.Label, dialerConfig.Value.ChannelName, dialerConfig.Value.BlockName, dialerConfig.Value.MuteParameter);
+					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (ChannelName:'{2}')",
+						dialerConfig.Key, dialerConfig.Value.Label, dialerConfig.Value.ChannelName);
 				}
 			}
 
