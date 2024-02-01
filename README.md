@@ -29,85 +29,6 @@ com
 tcpIp
 ```
 
-## Configuration Properties
-
-The configuration properties are need to properly structure the commands used.
-
-Command Structure: 
-
-EP Commands: 
-
-- `EP <EPT> <EPN> <BN> <PN> [VALUE]`
-- `EP <CHANNEL_NAME> <PN> [VALUE]`
-
-RAMP Commands: 
-
-- `RAMP <EPT> <EPN> <TARGET_LEVEL> <STEP>`
-- `RAMP <CHANNEL_NAME> <TARGET_LEVEL> <STEP>`
-
-### Endpoint Types (EPT)
-
-**Inputs**
-
-| Device                           | `endpointType` |
-| -------------------------------- | -------------- |
-| Microphones                      | MIC            |
-| ClearOne BeamForming Mic Array 2 | BFM            |
-| USB In                           | USB_RX         |
-| Telephone (analog) In            | TELCO_RX       |
-| VoIP In                          | VOIP_RX        |
-
-**Outputs**
-
-| Device                                         | `endpointType` |
-| ---------------------------------------------- | -------------- |
-| Speakers                                       | SPEAKER        |
-| Output (any device attached to an output port) | OUTPUT         |
-| USB Out                                        | USB_TX         |
-| Telephone (analog) Out                         | TELCO_TX       |
-| VoIP Out                                       | VOIP_TX        |
-
-**Other**
-
-| Device                            | `endpointType` |
-| --------------------------------- | -------------- |
-| Fader                             | FADER          |
-| GPIO                              | GPIO           |
-| Processing Blocks                 | PROC           |
-| User Agent (for controlling VoIP) | UA             |
-| Signal Generator                  | SGEN           |
-
-### Endpoint Number (EPN)
-
-Endpoint number follows the format `BNN`.
-
-`B` = box number within a stack
-`NN` = channel number of the box
-
-### Block Number (BN)
-
-Refers to the end point block corresponding to some functionality of the endpoint
-
-**Example Block Numbers (BN)**
-
-| BN Name      |
-| ------------ |
-| LEVEL (1)    |
-| SETTINGS (2) |
-| SIG_GEN (12) |
-
-### Paraemeter Name (PN)
-
-Name of the parameter within a block, values depend on the BN value used.
-
-**Example Parameter Names (PN) - LEVEL (1) BN**
-
-| PN           | Description                                                                             | Value                                                                                                                                                                                                                                              |
-| ------------ | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GAIN (1)     | Fine gain.                                                                              | Default decibel range of -65 to 20 unless adjusted with MAX_GAIN or MIN_GAIN, adjust in increments of 0.5 Note: More information about gain or fine gain is available at the beginning of the EP section.<BR>Leave blank to retrieve current value |
-| MUTE (2)     | Mute                                                                                    | 0 = Unmute<BR>1 = mute<BR>2 = Toggle Current State<BR>Leave blank to retrieve current value                                                                                                                                                        |
-| MAX_GAIN (7) | Maximum gain. This controls how high gain can be set, and also how high ramping can go. | -65 to 20 in increments of 0.5<BR>Leave blank to retrieve current value                                                                                                                                                                            |
-| MIN_GAIN (8) | Minimum gain. This controls how low gain can be set, and also how low ramping can go.   | -65 to 20 in increments of 0.5<BR>Leave blank to retrieve current value                                                                                                                                                                            |
 
 ## Configuration Objects
 
@@ -155,6 +76,21 @@ Type: `convergepro2dsp`
 ```
 
 ### Level Control Blocks Configuration
+
+#### Block Number (BN) - Configuration property `blockName`
+
+Refers to the end point block corresponding to some functionality of the endpoint, for level control blocks the most commonly used value is:
+
+- `"blockName": "LEVEL"`
+
+#### Paraemeter Name (PN) - Configuration properties `levelParameter` & `muteParameter`
+
+Parameter names will vary based on the Block Numbers (BN) used to configure the `blockName` property.  The most commonly used values are:
+
+- `"levelParameter": "GAIN"`
+- `"muteParameter": "MUTE"`
+
+
 
 ```json
 {
@@ -209,18 +145,24 @@ Type: `convergepro2dsp`
 {
 	"properties": {
 		"dialers": { 
-			"label": "Dialer", 
-			"channelName": "VOIP_Rx",
-			"isVoip": true, 
-			"clearOnHangup": true, 
-			"levelParameter": "TELCO_RX", 
-			"muteParameter": "MUTE"
+			"dialer1": {
+				"label": "Dialer", 
+				"channelName": "VOIP1",
+				"isVoip": true, 
+				"clearOnHangup": true
+			}			
 		}
 	}
 }
 ```
 
+`isVoip` will change the command sent to include the `endpointType` `UA`.
+
+i.e. `EP UA {channelName} KEY KEY_CALL {dialString}`
+
 ### Bridge Configuration
+
+#### Appliance
 
 ```json
 {
@@ -235,13 +177,37 @@ Type: `convergepro2dsp`
 				"address": "127.0.0.2",
 				"port": 0
 			},
-			"ipid": "B1"
+			"ipid": "a2"
 		},
 		"devices": [
 			{
 				"deviceKey": "dsp1",
 				"joinStart": 1
 			}
+		]
+	}
+}
+```
+
+#### Server (VC-4)
+
+```json
+{
+	"key": "dsp1-bridge",
+	"name": "DSP Bridge",
+	"group": "api",
+	"type": "vcEiscApiAdvanced",
+	"properties": {
+		"control": {
+			"ipid": "d1",
+			"method": "ipid",
+			"roomId": "ROOM01SIMPL"
+		},
+		"devices": [ 
+			{ 
+				"deviceKey": "dsp-dialer1", 
+				"joinStart": 1 
+			} 
 		]
 	}
 }
