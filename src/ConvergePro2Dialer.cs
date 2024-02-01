@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.CrestronThread;
 using PepperDash.Core;
@@ -186,13 +187,13 @@ namespace ConvergePro2DspPlugin
 		/// <param name="config">configuration object</param>
 		/// <param name="parent">parent dsp instance</param>
 		public ConvergePro2Dialer(string key, ConvergePro2DspDialerConfig config, ConvergePro2Dsp parent)
-		{
+		{			
 			Key = key;
 			Parent = parent;
 			IsVoipDialer = config.IsVoip;
 			Label = config.Label;
 			ChannelName = config.ChannelName;
-			
+
 			ClearOnHangup = config.ClearOnHangup;
 
 			LocalNumberFeedback = new StringFeedback(() => LocalNumber);
@@ -203,8 +204,30 @@ namespace ConvergePro2DspPlugin
 			DoNotDisturbFeedback = new BoolFeedback(() => DoNotDisturbState);
 			CallerIdNumberFeedback = new StringFeedback(() => CallerIdNumber);
 
-			Initialize(key, config);
+			Initialize(key, config);			
 		}
+
+		private Dictionary<string, Action<string[]>> _handlers;
+
+		// Converge Pro 2 Serial Commands, PDF: 276
+		// => EP UA 101 NOTIFICATIONS STATE_CHANGE PL 1;DIALTONE
+		// => EP UA 101 NOTIFICATIONS STATE_CHANGE PL 1;NA;RINGBACK:OFF
+		// => EP UA 101 NOTIFICATIONS INDICATION PL 1;PARTY_LINE:ON
+		// => EP UA 101 NOTIFICATIONS INDICATION PL 1;INPROCESS;{PHONE_NUMBER_DIALED}
+		// => EP UA 101 NOTIFICATIONS INDICATION PL NA;RINGBACK:ON
+		private readonly List<string> _offHookValues = new List<string>
+		{
+            "ACTIVE",
+			"DIAL_TONE",
+			"DIALING",
+            "INPROCESS",
+            "RINGING"
+		};
+
+		private readonly List<string> _incomingCallValues = new List<string>
+		{
+			"INCOMING"
+		};
 
 		/// <summary>
 		/// Initializes dialer
@@ -218,6 +241,49 @@ namespace ConvergePro2DspPlugin
 			DeviceManager.AddDevice(this);
 
 			if (IsVoipDialer) SubscribeToNotifications();
+
+			_handlers = new Dictionary<string, Action<string[]>>
+			{
+				{
+					"STATE_CHANGE", v => OffHook = _offHookValues.Any(s=>s.Contains(v[0]))
+				},
+				{
+					"INDICATION", null	
+				},
+				{
+					"INCOMING_CALL", v => IncomingCall = _incomingCallValues.Any(s=>s.Contains(v[0]))
+				},				
+				{
+					"HOOK", v => OffHook = v[0] == "1"
+				},
+				{
+					"LOCAL_NUMBER", v=> LocalNumber = v[0]
+				},
+				{
+					"RING", null	
+				},
+				{
+					"AUTO_ANSWER_RINGS", null
+				},
+				{
+					"AUTO_DISCONNECT_MODE", null
+				},
+				{
+					"KEY_CALL", null
+				},
+				{
+					"KEY_HOOK_FLASH", null
+				},
+				{
+					"KEY_REDIAL", null
+				},
+				{
+					"CALLER_ID", null
+				},
+				{
+					"ERROR", v => Debug.Console(2, this, "ERROR: {0}", v.ToString())
+				}
+			};
 		}
 
 		/// <summary>
@@ -242,7 +308,7 @@ namespace ConvergePro2DspPlugin
 			foreach (var notification in notifications)
 			{
 				var cmd = string.Format("EP UA {0} NOTIFCATION {1}", ChannelName, notification);
-				Parent.SendText(cmd);
+				SendText(cmd);
 			}
 		}
 
@@ -261,7 +327,7 @@ namespace ConvergePro2DspPlugin
 			var handler = CallStatusChange;
 			if (handler == null) return;
 			CallStatusChange(this, args);
-		}
+		}		
 
 		/// <summary>
 		/// Parses the response from the DSP. Command is "MUTE, GAIN, MINMAX, erc. Values[] is the returned values after the channel and group.
@@ -271,63 +337,22 @@ namespace ConvergePro2DspPlugin
 		/// "EP MIC 103 LEVEL MUTE 0"
 		/// "EP PROC 201 LEVEL GAIN -5"
 		/// </example>
-		/// <param name="command"></param>
+		/// <param name="parameterName"></param>
 		/// <param name="values"></param>
-		public void ParseResponse(string command, string[] values)
+		public void ParseResponse(string parameterName, string[] values)
 		{
-			Debug.Console(1, this, "ProceseResponse: {0} values: '{1}'", command, string.Join(", ", values));
-			switch (command)
+			Debug.Console(1, this, "ProceseResponse: parameterName-'{0}' values-'{1}'", parameterName, string.Join(", ", values));
+
+			Action<string[]> handler;
+			if (!_handlers.TryGetValue(parameterName, out handler))
 			{
-				case "AUTO_ANSWER_RINGS":
-					{
-						break;
-					}
-				case "AUTO_DISCONNECT_MODE":
-					{
-						break;
-					}
-				case "KEY_CALL":
-					{
-						break;
-					}
-				case "KEY_HOOK_FLASH":
-					{
-						break;
-					}
-				case "KEY_REDIAL":
-					{
-						break;
-					}
-				case "INCOMING_CALL":
-					{
-						IncomingCall = values[0] == "1";
-						break;
-					}
-				case "CALLER_ID":
-					{
-						break;
-					}
-				case "HOOK":
-					{
-						OffHook = values[0] == "1";
-						break;
-					}
-				case "RING":
-					{
-						break;
-					}
-				case "LOCAL_NUMBER":
-					{
-						LocalNumber = values[0];
-						break;
-					}
-				default:
-					{
-						Debug.Console(2, this, "ResponseRecieved: unhandled response '{0} {1}'", command, values.ToString());
-						break;
-					}
+				Debug.Console(2, this, "ResponseRecieved: unhandled response '{0} {1}'", parameterName, values.ToString());
+				return;
 			}
+
+			handler(values);		
 		}
+
 
 		private void SendText(string cmd)
 		{
@@ -602,6 +627,8 @@ namespace ConvergePro2DspPlugin
 		/// <param name="digit">keypad digit pressed as a string</param>
 		public void SendDtmf(string digit)
 		{
+			Debug.Console(2, this, "SendDtmf: {0}", digit);
+
 			var keypadTag = EKeypadKeys.Clear;
 			// Debug.Console(2, "DIaler {0} SendKeypad {1}", this.ke);
 			switch (digit)
@@ -655,6 +682,8 @@ namespace ConvergePro2DspPlugin
 		/// <param name="button">Button pressed</param>
 		public void SendKeypad(EKeypadKeys button)
 		{
+			Debug.Console(2, this, "SendKeypad: {0}", button);
+
 			string keypadTag = null;
 			// Debug.Console(_debugVersbose, "DIaler {0} SendKeypad {1}", this.ke);
 			switch (button)

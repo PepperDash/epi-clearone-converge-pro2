@@ -492,15 +492,13 @@ namespace ConvergePro2DspPlugin
 
 		private void OnSocketConnectionChange(object sender, GenericSocketStatusChageEventArgs args)
 		{
-			Debug.Console(_debugVerbose, this, "Socket state: {0}, IsConnected: {1}", args.Client.ClientStatus, args.Client.IsConnected ? "true" : "false");
+			Debug.Console(_debugVerbose, this, "Socket state: {0}", args.Client.ClientStatus);
 
-			if (!args.Client.IsConnected)
-			{
-				_loggedIn = false;
-				_comm.TextReceived += OnTextReceived;
-				return;
-			}
+			if (args.Client.IsConnected) return;
 
+			_loggedIn = false;
+			_comm.TextReceived += OnTextReceived;
+			
 			//var telnetNegotation = new byte[] { 0xFF, 0xFE, 0x01, 0xFF, 0xFE, 0x21, 0xFF, 0xFC, 0x01, 0xFF, 0xFC, 0x03 };
 			//args.Client.SendBytes(telnetNegotation);
 		}
@@ -508,7 +506,6 @@ namespace ConvergePro2DspPlugin
 		private void OnTextReceived(object dev, GenericCommMethodReceiveTextArgs args)
 		{
 			//Debug.Console(_debugVerbose, this, "OnTextReceived args.Text: '{0}'", args.Text);
-
 			if (string.IsNullOrEmpty(args.Text))
 			{
 				Debug.Console(_debugVerbose, this, "OnTextReceived: args.Text '{0}' is null or empty", args.Text);
@@ -594,9 +591,15 @@ namespace ConvergePro2DspPlugin
 				// => EP MyChannel LEVEL GAIN -5.0<LF><CR>
 				// => EP MyCHannel LEVEL MUTE 2<LF><CR>
 				// => Error Invalid Paramter(s)<LF><CR>
+				// => EP UA 101 NOTIFICATIONS INDICATION PL 1;PARTY_LINE:ON
+				// => EP UA 101 NOTIFICATIONS STATE_CHANGE PL 1;DIALTONE
+				// => EP UA 101 NOTIFICATIONS INDICATION PL 1;INPROCESS;{PHONE_NUMBER_DIALED}
+				// => EP UA 101 NOTIFICATIONS INDICATION PL NA;RINGBACK:ON
+				// => EP UA 101 NOTIFICATIONS STATE_CHANGE PL 1;NA;RINGBACK:OFF
 				var expression =
 					new Regex(
-						@"^=>\s*(?<CommandType>\w+)\s+(?<ChannelName>\w+)\s+(?<BlackName>\w+)\s+(?<ParameterName>\w+)(?:\s+(?<Value>[\w\-\.\s]+))?",
+						//@"^=>\s*(?<CommandType>\w+)\s+(?<ChannelName>\w+)\s+(?<BlockName>\w+)\s+(?<ParameterName>\w+)(?:\s+(?<Value>[\w\-\.\s]+))?",
+						@"\W+(?<CommandType>BOX|EP UA|EP)\s+(?<ChannelName>\w+)\s+(?<BlockName>\w+)\s+(?<ParameterName>\w+)\s+(?<Value>.*)",
 						RegexOptions.None);
 				var results = expression.Match(response);
 				if (!results.Success)
@@ -615,8 +618,8 @@ namespace ConvergePro2DspPlugin
 					? results.Groups["ChannelName"].Value
 					: string.Empty;
 
-				var blockName = results.Groups["BlackName"].Success
-					? results.Groups["BlackName"].Value
+				var blockName = results.Groups["BlockName"].Success
+					? results.Groups["BlockName"].Value
 					: string.Empty;
 
 				var parameterName = results.Groups["ParameterName"].Success
@@ -645,6 +648,7 @@ namespace ConvergePro2DspPlugin
 				switch (commandType)
 				{
 					case "EP":
+					case "EP UA":
 						{
 							switch (parameterName)
 							{
@@ -673,6 +677,7 @@ namespace ConvergePro2DspPlugin
 								case "CALLER_ID":
 								case "HOOK":
 								case "RING":
+								case "INDICATION":
 									{
 										Debug.Console(_debugNotice, this, "ProcessResponse: found parameter '{0}' response", parameterName);
 
@@ -692,7 +697,7 @@ namespace ConvergePro2DspPlugin
 							}
 
 							break;
-						}
+						}					
 					default:
 						{
 							Debug.Console(_debugVerbose, this, "ProcessResponse: Unhandled Response\r\tCommandType-'{0}', ChannelName-'{1}', BlockName-'{2}', ParameterName-'{3}', Value-'{4}'",
