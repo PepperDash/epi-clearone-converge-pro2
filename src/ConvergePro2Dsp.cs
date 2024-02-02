@@ -591,11 +591,11 @@ namespace ConvergePro2DspPlugin
 				// => EP MyChannel LEVEL GAIN -5.0<LF><CR>
 				// => EP MyCHannel LEVEL MUTE 2<LF><CR>
 				// => Error Invalid Paramter(s)<LF><CR>
-				// => EP UA 101 NOTIFICATIONS INDICATION PL 1;PARTY_LINE:ON
-				// => EP UA 101 NOTIFICATIONS STATE_CHANGE PL 1;DIALTONE
-				// => EP UA 101 NOTIFICATIONS INDICATION PL 1;INPROCESS;{PHONE_NUMBER_DIALED}
-				// => EP UA 101 NOTIFICATIONS INDICATION PL NA;RINGBACK:ON
-				// => EP UA 101 NOTIFICATIONS STATE_CHANGE PL 1;NA;RINGBACK:OFF
+				// => EP UA 101 NOTIFICATION INDICATION PL 1;PARTY_LINE:ON
+				// => EP UA 101 NOTIFICATION STATE_CHANGE PL 1;DIALTONE
+				// => EP UA 101 NOTIFICATION INDICATION PL 1;INPROCESS;{PHONE_NUMBER_DIALED}
+				// => EP UA 101 NOTIFICATION INDICATION PL NA;RINGBACK:ON
+				// => EP UA 101 NOTIFICATION STATE_CHANGE PL 1;NA;RINGBACK:OFF
 				var expression =
 					new Regex(
 						//@"^=>\s*(?<CommandType>\w+)\s+(?<ChannelName>\w+)\s+(?<BlockName>\w+)\s+(?<ParameterName>\w+)(?:\s+(?<Value>[\w\-\.\s]+))?",
@@ -678,6 +678,7 @@ namespace ConvergePro2DspPlugin
 								case "HOOK":
 								case "RING":
 								case "INDICATION":
+								case "STATE_CHANGE":
 									{
 										Debug.Console(_debugNotice, this, "ProcessResponse: found parameter '{0}' response", parameterName);
 

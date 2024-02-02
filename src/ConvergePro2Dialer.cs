@@ -187,7 +187,7 @@ namespace ConvergePro2DspPlugin
 		/// <param name="config">configuration object</param>
 		/// <param name="parent">parent dsp instance</param>
 		public ConvergePro2Dialer(string key, ConvergePro2DspDialerConfig config, ConvergePro2Dsp parent)
-		{			
+		{
 			Key = key;
 			Parent = parent;
 			IsVoipDialer = config.IsVoip;
@@ -204,7 +204,7 @@ namespace ConvergePro2DspPlugin
 			DoNotDisturbFeedback = new BoolFeedback(() => DoNotDisturbState);
 			CallerIdNumberFeedback = new StringFeedback(() => CallerIdNumber);
 
-			Initialize(key, config);			
+			Initialize(key, config);
 		}
 
 		private Dictionary<string, Action<string[]>> _handlers;
@@ -221,7 +221,15 @@ namespace ConvergePro2DspPlugin
 			"DIAL_TONE",
 			"DIALING",
             "INPROCESS",
-            "RINGING"
+            "RINGING",
+            "HOLD",
+            "BUSY",
+		};
+
+		private readonly List<string> _onHookValues = new List<string>
+		{
+            "UNKNOWN",
+			"IDLE"
 		};
 
 		private readonly List<string> _incomingCallValues = new List<string>
@@ -245,10 +253,12 @@ namespace ConvergePro2DspPlugin
 			_handlers = new Dictionary<string, Action<string[]>>
 			{
 				{
-					"STATE_CHANGE", v => OffHook = _offHookValues.Any(s=>s.Contains(v[0]))
+					//"STATE_CHANGE", v => OffHook = _offHookValues.Any(s=>s.Contains(v[0]))
+					"STATE_CHANGE", v => OffHook = !_onHookValues.Any(s=>s.Contains(v[0]))
 				},
 				{
-					"INDICATION", null	
+					//"INDICATION", v => OffHook = _offHookValues.Any(s=>s.Contains(v[0]))
+                    "INDICATION", null                    
 				},
 				{
 					"INCOMING_CALL", v => IncomingCall = _incomingCallValues.Any(s=>s.Contains(v[0]))
@@ -327,7 +337,7 @@ namespace ConvergePro2DspPlugin
 			var handler = CallStatusChange;
 			if (handler == null) return;
 			CallStatusChange(this, args);
-		}		
+		}
 
 		/// <summary>
 		/// Parses the response from the DSP. Command is "MUTE, GAIN, MINMAX, erc. Values[] is the returned values after the channel and group.
@@ -346,11 +356,17 @@ namespace ConvergePro2DspPlugin
 			Action<string[]> handler;
 			if (!_handlers.TryGetValue(parameterName, out handler))
 			{
-				Debug.Console(2, this, "ResponseRecieved: unhandled response '{0} {1}'", parameterName, values.ToString());
+				Debug.Console(2, this, "ProceseResponse: unhandled response '{0} {1}'", parameterName, values.ToString());
 				return;
 			}
 
-			handler(values);		
+			if (handler == null)
+			{
+				Debug.Console(2, this, "ProceseResponse: _handlers defined Action for {0} is null", parameterName);
+				return;
+			}
+
+			handler(values);
 		}
 
 
