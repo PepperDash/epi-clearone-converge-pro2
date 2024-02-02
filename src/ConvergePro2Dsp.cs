@@ -32,7 +32,7 @@ namespace ConvergePro2DspPlugin
 
 		private readonly ConvergePro2DspConfig _config;
 		private uint _heartbeatTracker;
-		private bool _loggedIn; 
+		private bool _loggedIn;
 		private bool _initializeComplete;
 
 		public string BoxName { get; set; }
@@ -68,7 +68,7 @@ namespace ConvergePro2DspPlugin
 				_commRxQueue = new GenericQueue(key + "-queue");
 				CommGather = new CommunicationGather(_comm, CommGatherDelimiter);
 				CommGather.LineReceived += OnLineRecieved;
-				
+
 
 				var pollTime = 30000;
 				var timeToWarning = 180000;
@@ -150,10 +150,10 @@ namespace ConvergePro2DspPlugin
 			Debug.Console(_debugTrace, this, "Linking to Bridge Type {0}", GetType().Name);
 
 			IsOnlineFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsOnline.JoinNumber]);
-			
-			if(CommMonitorFeedback != null)
+
+			if (CommMonitorFeedback != null)
 				CommMonitorFeedback.LinkInputSig(trilist.UShortInput[joinMap.CommunicationMonitorStatus.JoinNumber]);
-						
+
 			if (SocketStatusFeedback != null)
 				SocketStatusFeedback.LinkInputSig(trilist.UShortInput[joinMap.SocketStatus.JoinNumber]);
 
@@ -168,7 +168,7 @@ namespace ConvergePro2DspPlugin
 			{
 				if (!args.DeviceOnLine) return;
 
-				trilist.SetString(joinMap.DeviceName.JoinNumber, Name);				
+				trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
 				IsOnlineFeedback.FireUpdate();
 				CommMonitorFeedback.FireUpdate();
 				SocketStatusFeedback.FireUpdate();
@@ -340,7 +340,7 @@ namespace ConvergePro2DspPlugin
 
 				// dial & call controls
 				trilist.SetSigTrueAction(joinMap.EndCall.JoinNumber + dialerLineOffset, dialer.EndAllCalls);
-				//trilist.SetSigTrueAction(joinMap.IncomingCallAccept.JoinNumber + dialerLineOffset, dialer.AcceptCall());
+				trilist.SetSigTrueAction(joinMap.Answer.JoinNumber + dialerLineOffset, dialer.AcceptCall);
 				//trilist.SetSigTrueAction(joinMap.IncomingCallReject.JoinNumber + dialerLineOffset, dialer.RejectCall());
 
 				dialer.IncomingCallFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IncomingCall.JoinNumber + dialerLineOffset]);
@@ -348,6 +348,9 @@ namespace ConvergePro2DspPlugin
 				//dialer.callerIdNameFeedback.LinkInputSig(trilist.StringInput[joinMap.CallerIdNameFb.JoinNumber + dialerLineOffset]);
 
 				// hook state command
+				trilist.SetSigTrueAction(joinMap.OnHook.JoinNumber + dialerLineOffset, dialer.EndAllCalls);
+				trilist.SetSigTrueAction(joinMap.OffHook.JoinNumber + dialerLineOffset, () => dialer.SetHookState(1));
+
 				dialer.OffHookFeedback.LinkInputSig(trilist.BooleanInput[joinMap.KeypadDial.JoinNumber + dialerLineOffset]);
 				dialer.OffHookFeedback.LinkInputSig(trilist.BooleanInput[joinMap.OffHook.JoinNumber + dialerLineOffset]);
 				dialer.OffHookFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.OnHook.JoinNumber + dialerLineOffset]);
@@ -408,7 +411,7 @@ namespace ConvergePro2DspPlugin
 			Debug.Console(_debugVerbose, this, new string('*', 50));
 			Debug.Console(_debugVerbose, this, new string('*', 50));
 			Debug.Console(_debugVerbose, this, "Creating DSP Objects");
-			
+
 			// levelControls
 			LevelControlPoints.Clear();
 			if (_config.LevelControlBlocks != null)
@@ -429,12 +432,12 @@ namespace ConvergePro2DspPlugin
 				foreach (var preset in _config.Presets)
 				{
 					Presets.Add(preset.Key, preset.Value);
-					
+
 					Debug.Console(_debugVerbose, this, "Added Preset {0}-'{1}' '{2}'",
 						preset.Key, preset.Value.Label, preset.Value.Preset);
 				}
 			}
-			
+
 			// dialers
 			Dialers.Clear();
 			if (_config.Dialers != null)
@@ -498,7 +501,7 @@ namespace ConvergePro2DspPlugin
 
 			_loggedIn = false;
 			_comm.TextReceived += OnTextReceived;
-			
+
 			//var telnetNegotation = new byte[] { 0xFF, 0xFE, 0x01, 0xFF, 0xFE, 0x21, 0xFF, 0xFC, 0x01, 0xFF, 0xFC, 0x03 };
 			//args.Client.SendBytes(telnetNegotation);
 		}
@@ -598,7 +601,7 @@ namespace ConvergePro2DspPlugin
 				// => EP UA 101 NOTIFICATION STATE_CHANGE PL 1;NA;RINGBACK:OFF
 				var expression =
 					new Regex(
-						//@"^=>\s*(?<CommandType>\w+)\s+(?<ChannelName>\w+)\s+(?<BlockName>\w+)\s+(?<ParameterName>\w+)(?:\s+(?<Value>[\w\-\.\s]+))?",
+					//@"^=>\s*(?<CommandType>\w+)\s+(?<ChannelName>\w+)\s+(?<BlockName>\w+)\s+(?<ParameterName>\w+)(?:\s+(?<Value>[\w\-\.\s]+))?",
 						@"\W+(?<CommandType>BOX|EP UA|EP)\s+(?<ChannelName>\w+)\s+(?<BlockName>\w+)\s+(?<ParameterName>\w+)\s+(?<Value>.*)",
 						RegexOptions.None);
 				var results = expression.Match(response);
@@ -632,10 +635,10 @@ namespace ConvergePro2DspPlugin
 
 				if (string.IsNullOrEmpty(commandType) || commandType.Equals("Error"))
 				{
-					Debug.Console(_debugNotice, this, "ProcessResponse: {0}", response.Replace("=>","").Trim());
+					Debug.Console(_debugNotice, this, "ProcessResponse: {0}", response.Replace("=>", "").Trim());
 					return;
 				}
-				
+
 				Debug.Console(_debugVerbose, this, "ProcessResponse: CommandType-'{0}', ChannelName-'{1}', BlockName-'{2}', ParameterName-'{3}', Value-'{4}'",
 					commandType, channelName, blockName, parameterName, value);
 
@@ -698,7 +701,7 @@ namespace ConvergePro2DspPlugin
 							}
 
 							break;
-						}					
+						}
 					default:
 						{
 							Debug.Console(_debugVerbose, this, "ProcessResponse: Unhandled Response\r\tCommandType-'{0}', ChannelName-'{1}', BlockName-'{2}', ParameterName-'{3}', Value-'{4}'",
@@ -748,7 +751,7 @@ namespace ConvergePro2DspPlugin
 				Debug.Console(_debugVerbose, this, "Heartbeat okay");
 			}
 		}
-		
+
 		/// <summary>
 		/// Runs the presetConfig with the number provided
 		/// </summary>

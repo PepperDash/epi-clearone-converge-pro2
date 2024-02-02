@@ -288,7 +288,7 @@ namespace ConvergePro2DspPlugin
 					"KEY_REDIAL", null
 				},
 				{
-					"CALLER_ID", null
+					"CALLER_ID", v => CallerIdNumber = v[0]
 				},
 				{
 					"ERROR", v => Debug.Console(2, this, "ERROR: {0}", v.ToString())
@@ -391,14 +391,8 @@ namespace ConvergePro2DspPlugin
 			var dndStateInt = !DoNotDisturbState ? 1 : 0;
 
 			var cmd = IsVoipDialer
-				? null
+				? string.Format("EP UA {0} KEY KEY_DO_NOT_DISTURB 2", ChannelName)
 				: string.Format("EP {0} SETTINGS RING_ENABLE {1}", ChannelName, dndStateInt);
-
-			if (cmd == null)
-			{
-				Debug.Console(1, this, "DoNotDisturbToggle: Not implemented for VoIP Dialer");
-				return;
-			}
 
 			SendText(cmd);
 		}
@@ -409,14 +403,8 @@ namespace ConvergePro2DspPlugin
 		public void DoNotDisturbOn()
 		{
 			var cmd = IsVoipDialer
-				? null
+				? string.Format("EP UA {0} KEY KEY_DO_NOT_DISTURB 1", ChannelName)
 				: string.Format("EP {0} SETTINGS RING_ENABLE 0", ChannelName);
-
-			if (cmd == null)
-			{
-				Debug.Console(1, this, "DoNotDisturbOn: Not implemented for VoIP Dialer");
-				return;
-			}
 
 			SendText(cmd);
 		}
@@ -427,14 +415,8 @@ namespace ConvergePro2DspPlugin
 		public void DoNotDisturbOff()
 		{
 			var cmd = IsVoipDialer
-				? null
+				? string.Format("EP UA {0} KEY KEY_DO_NOT_DISTURB 0", ChannelName)
 				: string.Format("EP {0} SETTINGS RING_ENABLE 1", ChannelName);
-
-			if (cmd == null)
-			{
-				Debug.Console(1, this, "DoNotDisturbOff: Not implemented for VoIP Dialer");
-				return;
-			}
 
 			SendText(cmd);
 		}
@@ -447,14 +429,8 @@ namespace ConvergePro2DspPlugin
 			var autoAnswerStateInt = !AutoAnswerState ? 1 : 0;
 
 			var cmd = IsVoipDialer
-				? null
+				? string.Format("EP UA {0} SETTINGS AUTO_ANSWER {1}", ChannelName, autoAnswerStateInt)
 				: string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS {1}", ChannelName, autoAnswerStateInt);
-
-			if (cmd == null)
-			{
-				Debug.Console(1, this, "AutoAnswerToggle: Not implemented for VoIP Dialer");
-				return;
-			}
 
 			SendText(cmd);
 		}
@@ -465,14 +441,8 @@ namespace ConvergePro2DspPlugin
 		public void AutoAnswerOn()
 		{
 			var cmd = IsVoipDialer
-				? null
+				? string.Format("EP UA {0} SETTINGS AUTO_ANSWER 1", ChannelName)
 				: string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 1", ChannelName);
-
-			if (cmd == null)
-			{
-				Debug.Console(1, this, "AutoAnswerOn: Not implemented for VoIP Dialer");
-				return;
-			}
 
 			SendText(cmd);
 		}
@@ -483,14 +453,8 @@ namespace ConvergePro2DspPlugin
 		public void AutoAnswerOff()
 		{
 			var cmd = IsVoipDialer
-				? null
+				? string.Format("EP UA {0} SETTINGS AUTO_ANSWER 0", ChannelName)
 				: string.Format("EP {0} SETTINGS AUTO_ANSWER_RINGS 0", ChannelName);
-
-			if (cmd == null)
-			{
-				Debug.Console(1, this, "AutoAnswerOff: Not implemented for VoIP Dialer");
-				return;
-			}
 
 			SendText(cmd);
 		}
@@ -532,6 +496,18 @@ namespace ConvergePro2DspPlugin
 			var cmd = IsVoipDialer
 				? string.Format("EP UA {0} KEY KEY_CALL {1}", ChannelName, number)
 				: string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, number);
+
+			SendText(cmd);
+		}
+
+		/// <summary>
+		/// Redial the last number known by the dialer
+		/// </summary>
+		public void Redial()
+		{
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_REDIAL", ChannelName)
+				: string.Format("EP {0} KEY KEY_REDIAL", ChannelName);
 
 			SendText(cmd);
 		}
@@ -598,7 +574,7 @@ namespace ConvergePro2DspPlugin
 			IncomingCall = false;
 
 			var cmd = IsVoipDialer
-				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
+				? string.Format("EP UA {0} KEY KEY_REJECT 1", ChannelName)
 				: string.Format("EP {0} KEY KEY_REJECT 1", ChannelName);
 
 			SendText(cmd);
@@ -613,8 +589,50 @@ namespace ConvergePro2DspPlugin
 			IncomingCall = false;
 
 			var cmd = IsVoipDialer
-				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
+				? string.Format("EP UA {0} KEY KEY_REJECT 1", ChannelName)
 				: string.Format("EP {0} KEY KEY_REJECT 1", ChannelName);
+
+			SendText(cmd);
+		}
+
+		/// <summary>
+		/// Set dialer hook state
+		/// </summary>
+		/// <param name="state"></param>
+		public void SetHookState(bool state)
+		{
+			var hookState = state ? "1" : "0";
+
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_HOOK {1}", ChannelName, hookState)
+				: string.Format("EP {0} KEY KEY_HOOK {1}", ChannelName, hookState);
+
+			SendText(cmd);
+		}
+
+		/// <summary>
+		/// Sets dialer hook state
+		/// </summary>
+		/// <param name="state">0=onHook, 1=offHook, 2=toggleHook</param>
+		public void SetHookState(uint state)
+		{
+			if (state > 2) return;
+
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_HOOK {1}", ChannelName, state)
+				: string.Format("EP {0} KEY KEY_HOOK {1}", ChannelName, state);
+
+			SendText(cmd);
+		}
+
+		/// <summary>
+		/// Hook flash
+		/// </summary>
+		public void HookFlash()
+		{
+			var cmd = IsVoipDialer
+				? string.Format("EP UA {0} KEY KEY_HOOK_FLASH", ChannelName)
+				: string.Format("EP {0} KEY KEY_HOOK_FLASH", ChannelName);
 
 			SendText(cmd);
 		}
@@ -625,14 +643,9 @@ namespace ConvergePro2DspPlugin
 		public void GetHookState()
 		{
 			var cmd = IsVoipDialer
-				? null
+				//? string.Format("EP UA {0} INQUIRE ACTIVE_PARTIES", ChannelName)
+				? string.Format("EP UA {0} INQUIRE HOOK", ChannelName)
 				: string.Format("EP {0} INQUIRE HOOK", ChannelName);
-
-			if (cmd == null)
-			{
-				Debug.Console(1, this, "GetHookState: Not implemented for VoIP Dialer");
-				return;
-			}
 
 			SendText(cmd);
 		}
