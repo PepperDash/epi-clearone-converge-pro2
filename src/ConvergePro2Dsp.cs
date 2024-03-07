@@ -99,6 +99,17 @@ namespace ConvergePro2DspPlugin
 				Debug.Console(_debugVerbose, this, new string('*', 50));
 
 				CreateDspObjects();
+
+				AddPostActivationAction(() =>
+				{
+					if (Dialers != null)
+					{
+						foreach (var dialer in Dialers)
+						{
+							dialer.Value.SubscribeToNotifications();
+						}
+					}
+				});
 			}
 			catch (Exception ex)
 			{
@@ -497,7 +508,17 @@ namespace ConvergePro2DspPlugin
 		{
 			Debug.Console(_debugVerbose, this, "Socket state: {0}", args.Client.ClientStatus);
 
-			if (args.Client.IsConnected) return;
+			if (args.Client.IsConnected)
+			{
+				if (Dialers == null) return;
+
+				foreach (var dialer in Dialers)
+				{
+					dialer.Value.SubscribeToNotifications();
+				}
+
+				return;
+			}
 
 			_loggedIn = false;
 			_comm.TextReceived += OnTextReceived;
@@ -670,12 +691,14 @@ namespace ConvergePro2DspPlugin
 									}
 								// "EP '<EPT> <EPN>' INQUIRE AUTO_ANSWER_RINGS [VALUE]"
 								// "EP '<EPT> <EPN>' NOTIFICATON INCOMING_CALL [VALUE]"
+								case "AUTO_ANSWER":
 								case "AUTO_ANSWER_RINGS":
 								case "AUTO_DISCONNECT_MODE":
 								case "KEY_CALL":
 								case "KEY_HOOK_FLASH":
 								case "KEY_REDIAL":
 								case "KEY_HOOK":
+								case "KEY_DO_NOT_DISTURB":
 								case "INCOMING_CALL":
 								case "CALLER_ID":
 								case "HOOK":

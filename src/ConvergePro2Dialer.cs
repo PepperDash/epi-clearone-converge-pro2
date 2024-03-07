@@ -205,9 +205,8 @@ namespace ConvergePro2DspPlugin
 			CallerIdNumberFeedback = new StringFeedback(() => CallerIdNumber);
 
 			Initialize(key, config);
-		}
 
-		private Dictionary<string, Action<string[]>> _handlers;
+		}
 
 		// Converge Pro 2 Serial Commands, PDF: 276
 		// => EP UA 101 NOTIFICATIONS STATE_CHANGE PL 1;DIALTONE
@@ -229,13 +228,16 @@ namespace ConvergePro2DspPlugin
 		private readonly List<string> _onHookValues = new List<string>
 		{
             "UNKNOWN",
-			"IDLE"
+			"IDLE",
+            "OFF"            
 		};
 
 		private readonly List<string> _incomingCallValues = new List<string>
 		{
 			"INCOMING"
 		};
+
+		private Dictionary<string, Action<string[]>> _handlers;
 
 		/// <summary>
 		/// Initializes dialer
@@ -250,33 +252,52 @@ namespace ConvergePro2DspPlugin
 
 			if (IsVoipDialer) SubscribeToNotifications();
 
+			// Dictionary<parameter, values>
 			_handlers = new Dictionary<string, Action<string[]>>
 			{
 				{
 					//"STATE_CHANGE", v => OffHook = _offHookValues.Any(s=>s.Contains(v[0]))
-					"STATE_CHANGE", v => OffHook = !_onHookValues.Any(s=>s.Contains(v[0]))
+					"STATE_CHANGE", v =>
+					{
+						var values = string.Join(",", v);
+						Debug.Console(1, this, "_handlers: STATE_CHANGE > {0}", values);
+						OffHook = !_onHookValues.Any(s => s.Contains(values));
+					}
 				},
 				{
 					//"INDICATION", v => OffHook = _offHookValues.Any(s=>s.Contains(v[0]))
-                    "INDICATION", null                    
+                    "INDICATION", v => Debug.Console(1, this, "_handlers: INDICATION > {0}", string.Join(", ", v))
 				},
 				{
-					"INCOMING_CALL", v => IncomingCall = _incomingCallValues.Any(s=>s.Contains(v[0]))
+					"NOTIFICATION", v =>
+					{
+						Debug.Console(1, this, "_handlers: NOTIFICATION > {0}", string.Join(", ", v));
+						OffHook = !_onHookValues.Any(s => v.All(s.Contains));
+					}
+				},
+				{
+					"INCOMING_CALL", v => IncomingCall = _incomingCallValues.Any(s => v.All(s.Contains))
 				},				
 				{
-					"HOOK", v => OffHook = v[0] == "1"
+					"HOOK", v => OffHook = v.Contains("1")
 				},
 				{
-					"LOCAL_NUMBER", v=> LocalNumber = v[0]
+					"LOCAL_NUMBER", v => LocalNumber = v.ToString()
 				},
 				{
 					"RING", null	
+				},
+				{
+					"AUTO_ANSWER", v => AutoAnswerState = v.Contains("1")
 				},
 				{
 					"AUTO_ANSWER_RINGS", null
 				},
 				{
 					"AUTO_DISCONNECT_MODE", null
+				},
+				{
+					"KEY_HOOK", v => OffHook = v.Contains("1")
 				},
 				{
 					"KEY_CALL", null
@@ -286,6 +307,9 @@ namespace ConvergePro2DspPlugin
 				},
 				{
 					"KEY_REDIAL", null
+				},
+				{
+					"KEY_DO_NOT_DISTURB", v => DoNotDisturbState = v.Contains("1")
 				},
 				{
 					"CALLER_ID", v => CallerIdNumber = v[0]
@@ -351,18 +375,18 @@ namespace ConvergePro2DspPlugin
 		/// <param name="values"></param>
 		public void ParseResponse(string parameterName, string[] values)
 		{
-			Debug.Console(1, this, "ProceseResponse: parameterName-'{0}' values-'{1}'", parameterName, string.Join(", ", values));
+			Debug.Console(1, this, "ParseResponse: parameterName-'{0}' values-'{1}'", parameterName, string.Join(", ", values));
 
 			Action<string[]> handler;
 			if (!_handlers.TryGetValue(parameterName, out handler))
 			{
-				Debug.Console(2, this, "ProceseResponse: unhandled response '{0} {1}'", parameterName, values.ToString());
+				Debug.Console(2, this, "ParseResponse: unhandled response '{0} {1}'", parameterName, values.ToString());
 				return;
 			}
 
 			if (handler == null)
 			{
-				Debug.Console(2, this, "ProceseResponse: _handlers defined Action for {0} is null", parameterName);
+				Debug.Console(2, this, "ParseResponse: _handlers defined Action for {0} is null", parameterName);
 				return;
 			}
 
@@ -391,7 +415,7 @@ namespace ConvergePro2DspPlugin
 			var dndStateInt = !DoNotDisturbState ? 1 : 0;
 
 			var cmd = IsVoipDialer
-				? string.Format("EP UA {0} KEY KEY_DO_NOT_DISTURB 2", ChannelName)
+				? string.Format("EP UA {0} KEY KEY_DO_NOT_DISTURB {1}", ChannelName, dndStateInt)
 				: string.Format("EP {0} SETTINGS RING_ENABLE {1}", ChannelName, dndStateInt);
 
 			SendText(cmd);
@@ -531,8 +555,8 @@ namespace ConvergePro2DspPlugin
 		public void EndAllCalls()
 		{
 			var cmd = IsVoipDialer
-				? string.Format("EP {0} KEY KEY_HOOK 0", ChannelName)
-				: string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName);
+				? string.Format("EP UA {0} KEY KEY_HOOK {1}", ChannelName, "0")
+				: string.Format("EP {0} KEY KEY_HOOK 0", ChannelName);
 
 			SendText(cmd);
 		}
