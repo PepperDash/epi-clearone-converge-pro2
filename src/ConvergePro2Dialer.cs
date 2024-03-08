@@ -56,7 +56,7 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Dialer local phone number property
 		/// </summary>
-		public String LocalNumber
+		public string LocalNumber
 		{
 			get { return _localNumber; }
 			private set
@@ -223,13 +223,16 @@ namespace ConvergePro2DspPlugin
             "RINGING",
             "HOLD",
             "BUSY",
+			"PARTY_LINE:ON"
 		};
 
 		private readonly List<string> _onHookValues = new List<string>
 		{
             "UNKNOWN",
 			"IDLE",
-            "OFF"            
+            "OFF",
+            "PARTY_LINE:OFF",
+            "WARNING_ERR:OFF"            
 		};
 
 		private readonly List<string> _incomingCallValues = new List<string>
@@ -255,34 +258,23 @@ namespace ConvergePro2DspPlugin
 			// Dictionary<parameter, values>
 			_handlers = new Dictionary<string, Action<string[]>>
 			{
-				{
-					//"STATE_CHANGE", v => OffHook = _offHookValues.Any(s=>s.Contains(v[0]))
-					"STATE_CHANGE", v =>
-					{
-						var values = string.Join(",", v);
-						Debug.Console(1, this, "_handlers: STATE_CHANGE > {0}", values);
-						OffHook = !_onHookValues.Any(s => s.Contains(values));
-					}
+				{					
+					"STATE_CHANGE", StateChangeHandler					
 				},
 				{
-					//"INDICATION", v => OffHook = _offHookValues.Any(s=>s.Contains(v[0]))
-                    "INDICATION", v => Debug.Console(1, this, "_handlers: INDICATION > {0}", string.Join(", ", v))
+					"INDICATION", IndicationHandler                    
 				},
 				{
-					"NOTIFICATION", v =>
-					{
-						Debug.Console(1, this, "_handlers: NOTIFICATION > {0}", string.Join(", ", v));
-						OffHook = !_onHookValues.Any(s => v.All(s.Contains));
-					}
+					"NOTIFICATION", NotificationHandler
 				},
 				{
-					"INCOMING_CALL", v => IncomingCall = _incomingCallValues.Any(s => v.All(s.Contains))
+				    "INCOMING_CALL", IncomingCallHandler
 				},				
 				{
 					"HOOK", v => OffHook = v.Contains("1")
 				},
 				{
-					"LOCAL_NUMBER", v => LocalNumber = v.ToString()
+				    "LOCAL_NUMBER", v => LocalNumber = string.Join(" ", v)
 				},
 				{
 					"RING", null	
@@ -309,41 +301,62 @@ namespace ConvergePro2DspPlugin
 					"KEY_REDIAL", null
 				},
 				{
-					"KEY_DO_NOT_DISTURB", v => DoNotDisturbState = v.Contains("1")
+				    "KEY_DO_NOT_DISTURB", v => DoNotDisturbState = v.Contains("1")
 				},
 				{
-					"CALLER_ID", v => CallerIdNumber = v[0]
+				    "CALLER_ID", v => CallerIdNumber = string.Join(" ", v)
 				},
 				{
-					"ERROR", v => Debug.Console(2, this, "ERROR: {0}", v.ToString())
+					"ERROR", v => Debug.Console(2, this, "ERROR: {0}", string.Join(" ",v))
 				}
 			};
 		}
 
-		/// <summary>
-		/// Subscribe to VoIP notifications
-		/// </summary>
-		public void SubscribeToNotifications()
+		private void StateChangeHandler(string[] responses)
 		{
-			if (!IsVoipDialer) return;
+			Debug.Console(2, this, "StateChangeHandler: {0}", string.Join(";", responses));
 
-			var notifications = new List<string>
-			{
-                "STATE_CHANGE IDLE",
-				"STATE_CHANGE DIAL_TONE",
-				"STATE_CHANGE DIALING",
-				"STATE_CHANGE RINGING",
-				"INDICATION PL NA;HOLD;ON;RINGINING",
-                "ERROR ERROR_CALL_ACTIVE",
-                "REG_FAILED",
-                "REG_SUCCEED"                
-			};
+			//var onHook = _onHookValues.Any(responses.Contains);
+			var onHook = responses.Any(_onHookValues.Contains);
 
-			foreach (var notification in notifications)
-			{
-				var cmd = string.Format("EP UA {0} NOTIFCATION {1}", ChannelName, notification);
-				SendText(cmd);
-			}
+			Debug.Console(2, this, "StateChangeHandler: _onHookValues match-{0}", onHook ? "true": "false");
+
+			OffHook = onHook == false;
+		}
+
+		private void IndicationHandler(string[] responses)
+		{			
+			Debug.Console(2, this, "IndicationHandler: {0}", string.Join(";", responses));
+
+			//var onHook = _onHookValues.Any(responses.Contains);
+			var onHook = responses.Any(_onHookValues.Contains);
+
+			Debug.Console(2, this, "IndicationHandler: _onHookValues match-{0}", onHook ? "true" : "false");
+
+			OffHook = onHook == false;
+		}
+
+		private void NotificationHandler(string[] responses)
+		{
+			Debug.Console(2, this, "NotificationHandler: {0}", string.Join(";", responses));
+
+			//var onHook = _onHookValues.Any(responses.Contains);
+			var onHook = responses.Any(_onHookValues.Contains);
+
+			Debug.Console(2, this, "NotificationHandler: _onHookValues match-{0}", onHook ? "true" : "false");
+
+			OffHook = onHook == false;
+		}
+
+		private void IncomingCallHandler(string[] responses)
+		{
+			Debug.Console(2, this, "IncomingCallHandler: {0}", string.Join(";", responses));
+
+			var incomingCall = _incomingCallValues.Any(responses.Contains);
+
+			Debug.Console(2, this, "IncomingCallHandler: _incomingCallValues match-{0}", incomingCall ? "true" : "false");
+
+			IncomingCall = incomingCall;
 		}
 
 		/// <summary>
@@ -390,9 +403,9 @@ namespace ConvergePro2DspPlugin
 				return;
 			}
 
+			Debug.Console(2, this, "ParseResponse: passing {0} with {1} values to handler", parameterName, values.Count());
 			handler(values);
 		}
-
 
 		private void SendText(string cmd)
 		{
@@ -405,6 +418,32 @@ namespace ConvergePro2DspPlugin
 			Debug.Console(2, this, "SendText: {0}", cmd);
 
 			Parent.SendText(cmd);
+		}
+
+		/// <summary>
+		/// Subscribe to VoIP notifications
+		/// </summary>
+		public void SubscribeToNotifications()
+		{
+			if (!IsVoipDialer) return;
+
+			var notifications = new List<string>
+			{
+                "STATE_CHANGE IDLE",
+				"STATE_CHANGE DIAL_TONE",
+				"STATE_CHANGE DIALING",
+				"STATE_CHANGE RINGING",
+				"INDICATION PL NA;HOLD;ON;RINGINING",
+                "ERROR ERROR_CALL_ACTIVE",
+                "REG_FAILED",
+                "REG_SUCCEED"                
+			};
+
+			foreach (var notification in notifications)
+			{
+				var cmd = string.Format("EP UA {0} NOTIFCATION {1}", ChannelName, notification);
+				SendText(cmd);
+			}
 		}
 
 		/// <summary>
