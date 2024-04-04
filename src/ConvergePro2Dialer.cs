@@ -81,6 +81,7 @@ namespace ConvergePro2DspPlugin
 			private set
 			{
 				_dialString = value;
+				Debug.Console(2, this, "Property: DialString-'{0}'", _dialString);
 				DialStringFeedback.FireUpdate();
 			}
 		}
@@ -100,6 +101,7 @@ namespace ConvergePro2DspPlugin
 			set
 			{
 				_offHook = value;
+				Debug.Console(2, this, "Property: OffHook-'{0}'", _offHook.ToString());
 				OffHookFeedback.FireUpdate();
 			}
 		}
@@ -119,6 +121,7 @@ namespace ConvergePro2DspPlugin
 			private set
 			{
 				_autoAnswerState = value;
+				Debug.Console(2, this, "Property: AutoAnswerState-'{0}'", _autoAnswerState.ToString());
 				AutoAnswerFeedback.FireUpdate();
 			}
 		}
@@ -271,16 +274,37 @@ namespace ConvergePro2DspPlugin
 				    "INCOMING_CALL", IncomingCallHandler
 				},				
 				{
-					"HOOK", v => OffHook = v.Contains("1")
+					"HOOK", v =>
+					{
+						foreach (var s in v)
+						{
+							Debug.Console(2, this, "_handlers: 'HOOK' v-'{0}'", s);
+						}
+						OffHook = v.Contains("1");
+					}
 				},
 				{
-				    "LOCAL_NUMBER", v => LocalNumber = string.Join(" ", v)
+				    "LOCAL_NUMBER", v =>
+				    {
+						foreach (var s in v)
+						{
+							Debug.Console(2, this, "_handlers: 'LOCAL_NUMBER' v-'{0}'", s);
+						}
+					    LocalNumber = string.Join(" ", v);
+				    }
 				},
 				{
 					"RING", null	
 				},
 				{
-					"AUTO_ANSWER", v => AutoAnswerState = v.Contains("1")
+					"AUTO_ANSWER", v =>
+					{
+						foreach (var s in v)
+						{
+							Debug.Console(2, this, "_handlers: 'AUTO_ANSWER' v-'{0}'", s);
+						}
+						AutoAnswerState = v.Contains("1");
+					}
 				},
 				{
 					"AUTO_ANSWER_RINGS", null
@@ -289,7 +313,14 @@ namespace ConvergePro2DspPlugin
 					"AUTO_DISCONNECT_MODE", null
 				},
 				{
-					"KEY_HOOK", v => OffHook = v.Contains("1")
+					"KEY_HOOK", v =>
+					{
+						foreach (var s in v)
+						{
+							Debug.Console(2, this, "_handlers: 'KEY_HOOK' v-'{0}'", s);
+						}
+						OffHook = v.Contains("1");
+					}
 				},
 				{
 					"KEY_CALL", null
@@ -301,18 +332,38 @@ namespace ConvergePro2DspPlugin
 					"KEY_REDIAL", null
 				},
 				{
-				    "KEY_DO_NOT_DISTURB", v => DoNotDisturbState = v.Contains("1")
+				    "KEY_DO_NOT_DISTURB", v =>
+				    {
+					    foreach (var s in v)
+						{
+							Debug.Console(2, this, "_handlers: 'KEY_DO_NOT_DISTURB' v-'{0}'", s);
+						}
+						DoNotDisturbState = v.Contains("1");
+				    }
 				},
 				{
-				    "CALLER_ID", v => CallerIdNumber = string.Join(" ", v)
+				    "CALLER_ID", v =>
+				    {
+					    foreach (var s in v)
+						{
+							Debug.Console(2, this, "_handlers: 'CALLER_ID' v-'{0}'", s);
+						}
+						CallerIdNumber = string.Join(" ", v);
+				    }
 				},
 				{
-					"ERROR", v => Debug.Console(2, this, "ERROR: {0}", string.Join(" ",v))
+					"ERROR", v =>
+					{
+						foreach (var s in v)
+						{
+							Debug.Console(2, this, "_handlers: 'ERROR' v-'{0}'", s);
+						}
+					}
 				}
 			};
 		}
 
-		private void StateChangeHandler(string[] responses)
+		public void StateChangeHandler(string[] responses)
 		{
 			Debug.Console(2, this, "StateChangeHandler: {0}", string.Join(";", responses));
 
@@ -324,7 +375,7 @@ namespace ConvergePro2DspPlugin
 			OffHook = onHook == false;
 		}
 
-		private void IndicationHandler(string[] responses)
+		public void IndicationHandler(string[] responses)
 		{			
 			Debug.Console(2, this, "IndicationHandler: {0}", string.Join(";", responses));
 
@@ -336,7 +387,7 @@ namespace ConvergePro2DspPlugin
 			OffHook = onHook == false;
 		}
 
-		private void NotificationHandler(string[] responses)
+		public void NotificationHandler(string[] responses)
 		{
 			Debug.Console(2, this, "NotificationHandler: {0}", string.Join(";", responses));
 
@@ -348,7 +399,7 @@ namespace ConvergePro2DspPlugin
 			OffHook = onHook == false;
 		}
 
-		private void IncomingCallHandler(string[] responses)
+		public void IncomingCallHandler(string[] responses)
 		{
 			Debug.Console(2, this, "IncomingCallHandler: {0}", string.Join(";", responses));
 
