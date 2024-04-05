@@ -580,21 +580,18 @@ namespace ConvergePro2DspPlugin
 		/// <param name="args"></param>
 		private void OnLineRecieved(object dev, GenericCommMethodReceiveTextArgs args)
 		{
-			//Debug.Console(_debugVerbose, this, "OnLineRecieved args.Text: '{0}'", args.Text);
 			_heartbeatTracker = 0;
 
-			var text = args.Text.Trim();
-
-			if (string.IsNullOrEmpty(text))
+			if (string.IsNullOrEmpty(args.Text))
 			{
-				Debug.Console(_debugVerbose, this, "OnLineRecieved: args.Text '{0}' is null or empty", text);
+				Debug.Console(_debugVerbose, this, "OnLineRecieved: args.Text '{0}' is null or empty", args.Text);
 				return;
 			}
 
 			try
 			{
-				Debug.Console(_debugVerbose, this, "OnLineRecieved args.Text: '{0}'", text);
-				_commRxQueue.Enqueue(new ProcessStringMessage(text, ProcessResponse));
+				Debug.Console(_debugVerbose, this, "OnLineRecieved args.Text: '{0}'", args.Text);
+				_commRxQueue.Enqueue(new ProcessStringMessage(args.Text, ProcessResponse));
 			}
 			catch (Exception ex)
 			{
@@ -612,8 +609,6 @@ namespace ConvergePro2DspPlugin
 			try
 			{
 				if (string.IsNullOrEmpty(response)) return;
-
-				response = response.Replace("=>", "").Trim();
 
 				Debug.Console(_debugVerbose, this, "ProcessResponse: '{0}'", response);
 
@@ -687,6 +682,8 @@ namespace ConvergePro2DspPlugin
 								case "MIN_GIAN":
 								case "MAX_GAIN":
 									{
+										Debug.Console(_debugNotice, this, "ProcessResponse: found parameter '{0}' response", parameterName);
+
 										foreach (var controlPoint in LevelControlPoints.Where(controlPoint => channelName == controlPoint.Value.ChannelName))
 										{
 											controlPoint.Value.ParseResponse(parameterName, new[] { value });
@@ -706,7 +703,13 @@ namespace ConvergePro2DspPlugin
 								case "CALLER_ID":
 								case "HOOK":
 								case "RING":
+								case "INCOMING_CALL":
+								case "ACTIVE_PARTIES":
+								case "INDICATION":
+								case "STATE_CHANGE":
 									{
+										Debug.Console(_debugNotice, this, "ProcessResponse: found parameter '{0}' response", parameterName);
+
 										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 										{
 											dialer.Value.ParseResponse(parameterName, new[] { value });
@@ -715,29 +718,35 @@ namespace ConvergePro2DspPlugin
 
 										break;
 									}
+								/*
 								case "INCOMING_CALL":
-									foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 									{
-										dialer.Value.IncomingCallHandler(new[] { value });
-										return;
+										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
+										{
+											dialer.Value.IncomingCallHandler(new[] { value });
+											return;
+										}
+										break;
 									}
-									break;
 								case "INDICATION":
-								{
-									foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 									{
-										dialer.Value.IndicationHandler(new[] { value });
-										return;
+										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
+										{
+											dialer.Value.IndicationHandler(new[] { value });
+											return;
+										}
+										break;
 									}
-									break;
-								}
 								case "STATE_CHANGE":
-								foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
-								{
-									dialer.Value.StateChangeHandler(new[] { value });
-									return;
-								}
-								break;
+									{
+										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
+										{
+											dialer.Value.StateChangeHandler(new[] { value });
+											return;
+										}
+										break;
+									}
+								 */
 								default:
 									{
 										Debug.Console(_debugNotice, this, "ProcessResponse: unhandled parameter '{0}'", parameterName);
