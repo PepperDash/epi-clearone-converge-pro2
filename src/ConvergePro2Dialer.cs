@@ -370,19 +370,30 @@ namespace ConvergePro2DspPlugin
 			//var onHook = _onHookValues.Any(responses.Contains);
 			var onHook = responses.Any(_onHookValues.Contains);
 
-			Debug.Console(2, this, "StateChangeHandler: _onHookValues match-{0}", onHook ? "true": "false");
+			Debug.Console(2, this, "StateChangeHandler: _onHookValues match-{0}", onHook);
 
 			OffHook = onHook == false;
 		}
 
 		public void IndicationHandler(string[] responses)
-		{			
-			Debug.Console(2, this, "IndicationHandler: {0}", string.Join(";", responses));
+		{
+			foreach (var response in responses)
+			{
+				Debug.Console(2, this, "IndicationHandler: {0}", response);
+			}
 
-			//var onHook = _onHookValues.Any(responses.Contains);
-			var onHook = responses.Any(_onHookValues.Contains);
+			//var onHook = responses.Any(_onHookValues.Contains);
+			var onHook = responses.Any(s =>
+			{
+				Debug.Console(2, this, "IndicationHandler: s-'{0}'", s);
+				return _onHookValues.Any(b =>
+				{
+					Debug.Console(2, this, "IndicationHandler: '{0} == {1}'", s, b);
+					return s == b;
+				});
+			});
 
-			Debug.Console(2, this, "IndicationHandler: _onHookValues match-{0}", onHook ? "true" : "false");
+			Debug.Console(2, this, "IndicationHandler: _onHookValues match-{0}", onHook);
 
 			OffHook = onHook == false;
 		}
@@ -394,7 +405,7 @@ namespace ConvergePro2DspPlugin
 			//var onHook = _onHookValues.Any(responses.Contains);
 			var onHook = responses.Any(_onHookValues.Contains);
 
-			Debug.Console(2, this, "NotificationHandler: _onHookValues match-{0}", onHook ? "true" : "false");
+			Debug.Console(2, this, "NotificationHandler: _onHookValues match-{0}", onHook);
 
 			OffHook = onHook == false;
 		}
@@ -405,7 +416,7 @@ namespace ConvergePro2DspPlugin
 
 			var incomingCall = _incomingCallValues.Any(responses.Contains);
 
-			Debug.Console(2, this, "IncomingCallHandler: _incomingCallValues match-{0}", incomingCall ? "true" : "false");
+			Debug.Console(2, this, "IncomingCallHandler: _incomingCallValues match-{0}", incomingCall);
 
 			IncomingCall = incomingCall;
 		}
