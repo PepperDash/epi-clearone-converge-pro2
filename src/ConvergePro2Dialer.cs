@@ -374,8 +374,16 @@ namespace ConvergePro2DspPlugin
 				Debug.Console(2, this, "StateChangeHandler: response-'{0}'", response);
 			}
 
-			//var onHook = _onHookValues.Any(responses.Contains);
-			var onHook = responses.Any(_onHookValues.Contains);
+			//var onHook = responses.Any(_onHookValues.Contains);
+			var onHook = responses.Any(s =>
+			{
+				Debug.Console(2, this, "StateChangeHandler: s-'{0}'", s);
+				return _onHookValues.Any(b =>
+				{
+					Debug.Console(2, this, "StateChangeHandler: '{0} == {1}'", s, b);
+					return s == b;
+				});
+			});
 
 			Debug.Console(2, this, "StateChangeHandler: _onHookValues match-{0}", onHook);
 
@@ -412,7 +420,16 @@ namespace ConvergePro2DspPlugin
 				Debug.Console(2, this, "IncomingCallHandler: response-'{0}'", response);
 			}
 
-			var incomingCall = _incomingCallValues.Any(responses.Contains);
+			//var incomingCall = _incomingCallValues.Any(responses.Contains);
+			var incomingCall = responses.Any(s =>
+			{
+				Debug.Console(2, this, "IncomingCallHandler: s-'{0}'", s);
+				return _incomingCallValues.Any(b =>
+				{
+					Debug.Console(2, this, "IncomingCallHandler: '{0} == {1}'", s, b);
+					return s == b;
+				});
+			});
 
 			Debug.Console(2, this, "IncomingCallHandler: _incomingCallValues match-{0}", incomingCall);
 

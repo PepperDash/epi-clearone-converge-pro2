@@ -712,7 +712,7 @@ namespace ConvergePro2DspPlugin
 
 										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 										{
-											dialer.Value.ParseResponse(parameterName, new[] { value });
+											dialer.Value.ParseResponse(parameterName, value.Split(';'));
 											return;
 										}
 
