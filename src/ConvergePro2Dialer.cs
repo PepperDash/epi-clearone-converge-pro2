@@ -6,6 +6,7 @@ using Crestron.SimplSharpPro.CrestronThread;
 using PepperDash.Core;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Devices.Common.Codec;
+using PepperDash.Essentials.Devices.Common.VideoCodec.ZoomRoom;
 
 namespace ConvergePro2DspPlugin
 {
@@ -183,7 +184,7 @@ namespace ConvergePro2DspPlugin
 			{
 				_incomingCall = value;
 				Debug.Console(2, this, ">>>> IncomingCall: {0}", _incomingCall);
-				IncomingCallFeedback.FireUpdate();
+				IncomingCallFeedback.FireUpdate();				
 			}
 		}
 
@@ -212,7 +213,6 @@ namespace ConvergePro2DspPlugin
 			CallerIdNumberFeedback = new StringFeedback(() => CallerIdNumber);
 
 			Initialize(key, config);
-
 		}
 
 		// Converge Pro 2 Serial Commands, PDF: 276
@@ -227,7 +227,6 @@ namespace ConvergePro2DspPlugin
 			"DIAL_TONE",
 			"DIALING",
             "INPROCESS",
-            "RINGING",
             "HOLD",
             "BUSY",
 			"PARTY_LINE:ON"
@@ -242,9 +241,17 @@ namespace ConvergePro2DspPlugin
             "WARNING_ERR:OFF"            
 		};
 
+
+		// => EP UA 101 NOTIFICATION INDICATION PL NA;RINGING:ON
+		// => EP UA 101 NOTIFICATION INDICATION PL 1; PARTY_LINE:BLINK
+		// => EP UA 101 NOTIFICATION STATE_CHANGE PL 1; Incoming:"77897 S7/B1020/3 North" <SIP:77897@154.70.4.100>
+		// => EP UA 101 NOTIFICATION INDICATION PL NA;RINGING:OFF
+		// => EP UA 101 NOTIFICATION STATE_CHANGE PL 1:IDLE
+		// => EP UA 101 NOTIFICATION INDICATION PL 1;PARY_LINE:OFF		
 		private readonly List<string> _incomingCallValues = new List<string>
 		{
-			"INCOMING"
+			"INCOMING",
+            "PARTY_LINE:BLINK"            
 		};
 
 		private Dictionary<string, Action<string[]>> _handlers;
@@ -369,19 +376,27 @@ namespace ConvergePro2DspPlugin
 
 		public void StateChangeHandler(string[] responses)
 		{
+			if (responses == null || responses.Length == 0) return;
+
 			foreach (var response in responses)
 			{
 				Debug.Console(2, this, "StateChangeHandler: response-'{0}'", response);
+				if (!response.Contains("INCOMING")) continue;
+				
+				Debug.Console(2, this, "StateChangeHandler: response '{0}' contains 'INCOMING'", response);
+				IncomingCallHandler(new[] { response });
+
+				return;
 			}
 
-			//var onHook = responses.Any(_onHookValues.Contains);
 			var onHook = responses.Any(s =>
 			{
 				Debug.Console(2, this, "StateChangeHandler: s-'{0}'", s);
 				return _onHookValues.Any(b =>
 				{
-					Debug.Console(2, this, "StateChangeHandler: '{0} == {1}'", s, b);
-					return s == b;
+					var state = s == b;
+					Debug.Console(2, this, "StateChangeHandler: '{0} == {1}' is {2}", s, b, state);
+					return state;
 				});
 			});
 
@@ -392,43 +407,81 @@ namespace ConvergePro2DspPlugin
 
 		public void IndicationHandler(string[] responses)
 		{
+			if (responses == null || responses.Length == 0) return;
+
 			foreach (var response in responses)
 			{
 				Debug.Console(2, this, "IndicationHandler: response-'{0}'", response);
+				if (!response.Contains("INCOMING")) continue;
+
+				Debug.Console(2, this, "IndicationHandler: response '{0}' contains 'INCOMING'", response);
+				IncomingCallHandler(new[] { response });
+
+				return;
 			}
 
-			//var onHook = responses.Any(_onHookValues.Contains);
 			var onHook = responses.Any(s =>
 			{
 				Debug.Console(2, this, "IndicationHandler: s-'{0}'", s);
 				return _onHookValues.Any(b =>
 				{
-					Debug.Console(2, this, "IndicationHandler: '{0} == {1}'", s, b);
-					return s == b;
+					var state = s == b;
+					Debug.Console(2, this, "IndicationHandler: '{0} == {1}' is {2}", s, b, state);
+					return state;
 				});
 			});
 
 			Debug.Console(2, this, "IndicationHandler: _onHookValues match-{0}", onHook);
 
 			OffHook = onHook == false;
-		}		
+		}
+		
+		public void ActivePartiesHandler(string[] responses)
+		{
+			if (responses == null || responses.Length == 0) return;
+
+			foreach (var response in responses)
+			{
+				Debug.Console(2, this, "ActivePartiesHandler: response-'{0}'", response);
+				if (!response.Contains("INCOMING")) continue;
+
+				Debug.Console(2, this, "IndicationHandler: response '{0}' contains 'INCOMING'", response);
+				IncomingCallHandler(new[] { response });
+
+				return;
+			}
+
+			var onHook = responses.Any(s =>
+			{
+				Debug.Console(2, this, "ActivePartiesHandler: s-'{0}'", s);
+				return _onHookValues.Any(b =>
+				{
+					var state = s == b;
+					Debug.Console(2, this, "ActivePartiesHandler: '{0} == {1}' is {2}", s, b, state);
+					return state;
+				});
+			});
+
+			Debug.Console(2, this, "ActivePartiesHandler: _onHookValues match-{0}", onHook);
+
+			OffHook = onHook == false;
+		}
 
 		public void IncomingCallHandler(string[] responses)
 		{
+			if (responses == null || responses.Length == 0) return;
+
 			foreach (var response in responses)
 			{
 				Debug.Console(2, this, "IncomingCallHandler: response-'{0}'", response);
 			}
 
-			//var incomingCall = _incomingCallValues.Any(responses.Contains);
 			var incomingCall = responses.Any(s =>
 			{
 				Debug.Console(2, this, "IncomingCallHandler: s-'{0}'", s);
-				return _incomingCallValues.Any(b =>
-				{
-					Debug.Console(2, this, "IncomingCallHandler: '{0} == {1}'", s, b);
-					return s == b;
-				});
+				var state = _incomingCallValues.Where(s.Contains).Any();
+				Debug.Console(2, this, "IncomingCallHandler: state is '{0}'", state);
+				return state;
 			});
 
 			Debug.Console(2, this, "IncomingCallHandler: _incomingCallValues match-{0}", incomingCall);
@@ -436,28 +489,6 @@ namespace ConvergePro2DspPlugin
 			IncomingCall = incomingCall;
 		}
 
-		public void ActivePartiesHandler(string[] responses)
-		{
-			foreach (var response in responses)
-			{
-				Debug.Console(2, this, "ActivePartiesHandler: response-'{0}'", response);
-			}
-
-			//var onHook = responses.Any(_onHookValues.Contains);
-			var onHook = responses.Any(s =>
-			{
-				Debug.Console(2, this, "ActivePartiesHandler: s-'{0}'", s);
-				return _onHookValues.Any(b =>
-				{
-					Debug.Console(2, this, "ActivePartiesHandler: '{0} == {1}'", s, b);
-					return s == b;
-				});
-			});
-
-			Debug.Console(2, this, "ActivePartiesHandler: _onHookValues match-{0}", onHook);
-
-			OffHook = onHook == false;	
-		}
 
 		/// <summary>
 		/// Call status change event
@@ -528,9 +559,9 @@ namespace ConvergePro2DspPlugin
 			GetHookState();
 
 			if (!IsVoipDialer) return;
-			
+
 			var cmd = string.Format("EP UA {0} INQUIRE DND_STATUS", ChannelName);
-			SendText(cmd);			
+			SendText(cmd);
 		}
 
 		/// <summary>
@@ -648,6 +679,8 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void Dial()
 		{
+			IncomingCall = false;
+
 			if (OffHook)
 			{
 				EndAllCalls();
@@ -668,6 +701,8 @@ namespace ConvergePro2DspPlugin
 		/// <param name="number">Number to dial</param>
 		public void Dial(string number)
 		{
+			IncomingCall = false;
+
 			if (string.IsNullOrEmpty(number))
 				return;
 
@@ -702,6 +737,8 @@ namespace ConvergePro2DspPlugin
 		/// <param name="item">Use null as the parameter, use of CodecActiveCallItem is not implemented</param>
 		public void EndCall(CodecActiveCallItem item)
 		{
+			IncomingCall = false;
+
 			var cmd = IsVoipDialer
 				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
 				: string.Format("EP {0} KEY KEY_HOOK 0", ChannelName);
@@ -714,6 +751,8 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void EndAllCalls()
 		{
+			IncomingCall = false;
+
 			var cmd = IsVoipDialer
 				? string.Format("EP UA {0} KEY KEY_HOOK {1}", ChannelName, "0")
 				: string.Format("EP {0} KEY KEY_HOOK 0", ChannelName);

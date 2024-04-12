@@ -692,6 +692,7 @@ namespace ConvergePro2DspPlugin
 									}
 								// "EP '<EPT> <EPN>' INQUIRE AUTO_ANSWER_RINGS [VALUE]"
 								// "EP '<EPT> <EPN>' NOTIFICATON INCOMING_CALL [VALUE]"
+								//case "RING":
 								case "AUTO_ANSWER":
 								case "AUTO_ANSWER_RINGS":
 								case "AUTO_DISCONNECT_MODE":
@@ -701,12 +702,8 @@ namespace ConvergePro2DspPlugin
 								case "KEY_HOOK":
 								case "KEY_DO_NOT_DISTURB":
 								case "CALLER_ID":
-								case "HOOK":
-								case "RING":
+								case "HOOK":								
 								case "INCOMING_CALL":
-								case "ACTIVE_PARTIES":
-								case "INDICATION":
-								case "STATE_CHANGE":
 									{
 										Debug.Console(_debugNotice, this, "ProcessResponse: found parameter '{0}' response", parameterName);
 
@@ -718,35 +715,58 @@ namespace ConvergePro2DspPlugin
 
 										break;
 									}
-								/*
-								case "INCOMING_CALL":
+								case "ACTIVE_PARTIES":
+									foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 									{
-										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
+										var responses = value.Split(';');
+										if (responses.Any(r => r.ToUpper().Contains("INCOMING")))
 										{
-											dialer.Value.IncomingCallHandler(new[] { value });
+											dialer.Value.IncomingCallHandler(responses);
 											return;
 										}
-										break;
+
+										dialer.Value.ActivePartiesHandler(responses);
+
+										return;
 									}
+
+									break;
 								case "INDICATION":
 									{
 										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 										{
-											dialer.Value.IndicationHandler(new[] { value });
+											var responses = value.Split(';');
+											if (responses.Any(r => r.ToUpper().Contains("INCOMING")))
+											{
+												dialer.Value.IncomingCallHandler(responses);
+												return;
+											}
+
+											dialer.Value.IndicationHandler(responses);
+
 											return;
 										}
+
 										break;
 									}
 								case "STATE_CHANGE":
 									{
 										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 										{
-											dialer.Value.StateChangeHandler(new[] { value });
+											var responses = value.Split(';');
+											if (responses.Any(r => r.ToUpper().Contains("INCOMING")))
+											{
+												dialer.Value.IncomingCallHandler(responses);
+												return;
+											}
+
+											dialer.Value.StateChangeHandler(responses);
+
 											return;
 										}
+
 										break;
-									}
-								 */
+									}								
 								default:
 									{
 										Debug.Console(_debugNotice, this, "ProcessResponse: unhandled parameter '{0}'", parameterName);
@@ -856,6 +876,35 @@ namespace ConvergePro2DspPlugin
 			_debugTrace = level;
 			_debugNotice = level;
 			_debugVerbose = level;
+		}
+
+		#endregion
+
+
+		#region EmulateEvents
+
+		/// <summary>
+		/// Emulates the incoming call responses, provided the `channelName`
+		/// </summary>
+		/// <param name="channelName">string</param>
+		public void EmulateIncomingCall(string channelName)
+		{
+			var incomingCallResponses = new List<string>
+			{
+				"=> EP UA {0} NOTIFICATION INDICATION PL;RINING:ON{1}",
+				"=> EP UA {0} NOTIFICATION INDICATION PL 1;PARTY_LINE:BLINK{1}",
+				"=> EP UA {0} NOTIFICATION STATE_CHANGE PL 1;INCOMING:\"77897 S7/B1020/3 North\" <SIP:77897@154.70.4.100>{1}",
+				"=> EP UA {0} NOTIFICATION INDICATION PL NA;RINGING:OFF{1}",
+				"=> EP UA {0} NOTIFICATION STATE_CHANGE PL 1:IDLE{1}",
+				"=> EP UA {0} NOTIFICATION INDICATION PL 1;PARTY_LINE:OFF{1}"
+			};
+
+			foreach (var response in incomingCallResponses)
+			{
+				var virtualResponse = string.Format(response, channelName, CommGatherDelimiter);
+
+				OnLineRecieved(this, new GenericCommMethodReceiveTextArgs(virtualResponse));
+			}
 		}
 
 		#endregion
