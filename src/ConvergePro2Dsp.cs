@@ -351,8 +351,8 @@ namespace ConvergePro2DspPlugin
 
 				// dial & call controls
 				trilist.SetSigTrueAction(joinMap.EndCall.JoinNumber + dialerLineOffset, dialer.EndAllCalls);
-				trilist.SetSigTrueAction(joinMap.Answer.JoinNumber + dialerLineOffset, dialer.AcceptCall);
-				//trilist.SetSigTrueAction(joinMap.IncomingCallReject.JoinNumber + dialerLineOffset, dialer.RejectCall());
+				trilist.SetSigTrueAction(joinMap.IncomingCallAnswer.JoinNumber + dialerLineOffset, dialer.AcceptCall);
+				trilist.SetSigTrueAction(joinMap.IncomingCallReject.JoinNumber + dialerLineOffset, dialer.RejectCall);
 
 				dialer.IncomingCallFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IncomingCall.JoinNumber + dialerLineOffset]);
 				dialer.CallerIdNumberFeedback.LinkInputSig(trilist.StringInput[joinMap.CallerIdNumberFb.JoinNumber + dialerLineOffset]);
