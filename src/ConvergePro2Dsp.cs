@@ -37,7 +37,7 @@ namespace ConvergePro2DspPlugin
 
 		public string BoxName { get; set; }
 		public Dictionary<string, ConvergePro2DspLevelControl> LevelControlPoints { get; private set; }
-		public Dictionary<string, ConvergePro2DspPresetConfig> Presets = new Dictionary<string, ConvergePro2DspPresetConfig>();
+		public Dictionary<string, ConvergePro2DspPresetConfig> Presets { get; set; }
 		public Dictionary<string, ConvergePro2Dialer> Dialers { get; set; }
 
 		public bool ShowHexResponse { get; set; }
@@ -92,13 +92,68 @@ namespace ConvergePro2DspPlugin
 				}
 
 				LevelControlPoints = new Dictionary<string, ConvergePro2DspLevelControl>();
+				Debug.Console(_debugVerbose, this, "CreateDspObjects: _config.LevelControlPoints.Count-'{0}'",
+				_config.LevelControlBlocks.Count);
+
+				LevelControlPoints.Clear();
+				if (_config.LevelControlBlocks != null)
+				{
+					foreach (var levelControlBlock in _config.LevelControlBlocks)
+					{
+						LevelControlPoints.Add(levelControlBlock.Key, new ConvergePro2DspLevelControl(levelControlBlock.Key, levelControlBlock.Value, this));
+
+						Debug.Console(_debugVerbose, this, "CreateDspObjects: Added LevelControl {0}-'{1}' (ChannelName:'{2}', BlockName:'{3}', MuteParameter:'{4}')",
+							levelControlBlock.Key, levelControlBlock.Value.Label, levelControlBlock.Value.ChannelName, levelControlBlock.Value.BlockName, levelControlBlock.Value.MuteParameter);
+					}
+				}
+
+				Debug.Console(_debugVerbose, this, "CreateDspObjects: LevelControlPoints.Count-'{0}'",
+					LevelControlPoints.Count);
+
 				Presets = new Dictionary<string, ConvergePro2DspPresetConfig>();
+				Debug.Console(_debugVerbose, this, "CreateDspObjects: _config.Presets.Count-'{0}'",
+				_config.Presets.Count);
+
+				Presets.Clear();
+				if (_config.Presets != null)
+				{
+					foreach (var item in _config.Presets)
+					{
+						var k = item.Key;
+						var preset = item.Value;
+						Presets.Add(k, preset);
+
+						Debug.Console(_debugVerbose, this, "CreateDspObjects: Added Preset {0}-'{1}' '{2}'",
+							k, preset.Label, preset.Preset);
+					}
+				}
+
+				Debug.Console(_debugVerbose, this, "CreateDspObjects: Presets.Count-'{0}'",
+					Presets.Count);
+
 				Dialers = new Dictionary<string, ConvergePro2Dialer>();
+				Debug.Console(_debugVerbose, this, "CreateDspObjects: _config.Dialers.Count-'{0}'",
+				_config.Dialers.Count);
+
+				Dialers.Clear();
+				if (_config.Dialers != null)
+				{
+					foreach (var dialerConfig in _config.Dialers)
+					{
+						Dialers.Add(dialerConfig.Key, new ConvergePro2Dialer(dialerConfig.Key, dialerConfig.Value, this));
+
+						Debug.Console(_debugVerbose, this, "CreateDspObjects: Added Dialer {0}-'{1}' (ChannelName:'{2}')",
+							dialerConfig.Key, dialerConfig.Value.Label, dialerConfig.Value.ChannelName);
+					}
+				}
+
+				Debug.Console(_debugVerbose, this, "CreateDspObjects: Dialers.Count-'{0}'",
+					Dialers.Count);
 
 				Debug.Console(_debugVerbose, this, new string('*', 50));
 				Debug.Console(_debugVerbose, this, new string('*', 50));
 
-				CreateDspObjects();
+				//CreateDspObjects();
 
 				AddPostActivationAction(() =>
 				{
@@ -197,6 +252,7 @@ namespace ConvergePro2DspPlugin
 
 				var key = LevelControlPoints.ElementAt(index).Key;
 				var channel = LevelControlPoints.ElementAt(index).Value;
+				Debug.Console(_debugVerbose, this, @"LinkPresetsToApi: channel == null... continuing.");
 				if (channel == null) continue;
 
 				if (channel.Enabled == false) continue;
@@ -277,6 +333,8 @@ namespace ConvergePro2DspPlugin
 		private void LinkPresetsToApi(BasicTriList trilist, ConvergePro2DspJoinMap joinMap)
 		{
 			var maxPresets = Presets.Count;
+			Debug.Console(_debugVerbose, this, @"LinkPresetsToApi: maxPresets-'{0}'", maxPresets);
+
 			if (maxPresets > joinMap.PresetRecall.JoinSpan) maxPresets = (int)joinMap.PresetRecall.JoinSpan;
 
 			trilist.SetStringSigAction(joinMap.PresetRecall.JoinNumber, RunPresetByString);
@@ -288,6 +346,7 @@ namespace ConvergePro2DspPlugin
 
 				var presetKey = Presets.ElementAt(index).Key;
 				var preset = Presets.ElementAt(index).Value;
+				Debug.Console(_debugVerbose, this, @"LinkPresetsToApi: preset == null... continuing.");
 				if (preset == null) continue;
 
 				var nameJoin = joinMap.PresetName.JoinNumber + (ushort)index;
@@ -300,7 +359,12 @@ namespace ConvergePro2DspPlugin
 					presetKey, preset.Label, nameJoin, presetRecallJoin);
 
 				trilist.SetString(nameJoin, preset.Label);
-				trilist.SetSigTrueAction(presetRecallJoin, () => RunPreset(preset));
+				trilist.SetSigTrueAction(presetRecallJoin, () =>
+				{
+					Debug.Console(_debugVerbose, this, @"LinkPresetsToApi: trilist.SetSigTrueAction(presetRecallJoin) => {0} {1}",
+						preset.Label, preset.Preset);
+					RunPreset(preset);
+				});
 			}
 
 			trilist.OnlineStatusChange += (sender, args) =>
@@ -418,9 +482,11 @@ namespace ConvergePro2DspPlugin
 		{
 			Debug.Console(_debugVerbose, this, new string('*', 50));
 			Debug.Console(_debugVerbose, this, new string('*', 50));
-			Debug.Console(_debugVerbose, this, "Creating DSP Objects");
-
+			
 			// levelControls
+			Debug.Console(_debugVerbose, this, "CreateDspObjects: _config.LevelControlPoints.Count-'{0}'",
+				_config.LevelControlBlocks.Count);
+
 			LevelControlPoints.Clear();
 			if (_config.LevelControlBlocks != null)
 			{
@@ -428,12 +494,18 @@ namespace ConvergePro2DspPlugin
 				{
 					LevelControlPoints.Add(levelControlBlock.Key, new ConvergePro2DspLevelControl(levelControlBlock.Key, levelControlBlock.Value, this));
 
-					Debug.Console(_debugVerbose, this, "Added LevelControl {0}-'{1}' (ChannelName:'{2}', BlockName:'{3}', MuteParameter:'{4}')",
+					Debug.Console(_debugVerbose, this, "CreateDspObjects: Added LevelControl {0}-'{1}' (ChannelName:'{2}', BlockName:'{3}', MuteParameter:'{4}')",
 						levelControlBlock.Key, levelControlBlock.Value.Label, levelControlBlock.Value.ChannelName, levelControlBlock.Value.BlockName, levelControlBlock.Value.MuteParameter);
 				}
 			}
 
-			// presets
+			Debug.Console(_debugVerbose, this, "CreateDspObjects: LevelControlPoints.Count-'{0}'",
+				LevelControlPoints.Count);
+
+			// presets			
+			Debug.Console(_debugVerbose, this, "CreateDspObjects: _config.Presets.Count-'{0}'", 
+				_config.Presets.Count);
+
 			Presets.Clear();
 			if (_config.Presets != null)
 			{
@@ -441,12 +513,18 @@ namespace ConvergePro2DspPlugin
 				{
 					Presets.Add(preset.Key, preset.Value);
 
-					Debug.Console(_debugVerbose, this, "Added Preset {0}-'{1}' '{2}'",
+					Debug.Console(_debugVerbose, this, "CreateDspObjects: Added Preset {0}-'{1}' '{2}'",
 						preset.Key, preset.Value.Label, preset.Value.Preset);
 				}
 			}
 
+			Debug.Console(_debugVerbose, this, "CreateDspObjects: Presets.Count-'{0}'",
+				Presets.Count);
+
 			// dialers
+			Debug.Console(_debugVerbose, this, "CreateDspObjects: _config.Dialers.Count-'{0}'",
+				_config.Dialers.Count);
+
 			Dialers.Clear();
 			if (_config.Dialers != null)
 			{
@@ -454,10 +532,13 @@ namespace ConvergePro2DspPlugin
 				{
 					Dialers.Add(dialerConfig.Key, new ConvergePro2Dialer(dialerConfig.Key, dialerConfig.Value, this));
 
-					Debug.Console(_debugVerbose, this, "Added Dialer {0}-'{1}' (ChannelName:'{2}')",
+					Debug.Console(_debugVerbose, this, "CreateDspObjects: Added Dialer {0}-'{1}' (ChannelName:'{2}')",
 						dialerConfig.Key, dialerConfig.Value.Label, dialerConfig.Value.ChannelName);
 				}
 			}
+
+			Debug.Console(_debugVerbose, this, "CreateDspObjects: Dialers.Count-'{0}'",
+				Dialers.Count);
 
 			Debug.Console(_debugVerbose, this, new string('*', 50));
 			Debug.Console(_debugVerbose, this, new string('*', 50));
