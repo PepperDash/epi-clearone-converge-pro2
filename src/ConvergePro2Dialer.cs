@@ -679,7 +679,10 @@ namespace ConvergePro2DspPlugin
 		/// </summary>
 		public void Dial()
 		{
-			IncomingCall = false;
+			//IncomingCall = false;
+
+			if (string.IsNullOrEmpty(DialString))
+				return;
 
 			if (OffHook)
 			{
@@ -701,7 +704,7 @@ namespace ConvergePro2DspPlugin
 		/// <param name="number">Number to dial</param>
 		public void Dial(string number)
 		{
-			IncomingCall = false;
+			//IncomingCall = false;
 
 			if (string.IsNullOrEmpty(number))
 				return;

@@ -368,8 +368,6 @@ namespace ConvergePro2DspPlugin
 
 				// dial string
 				trilist.SetStringSigAction(joinMap.DialString.JoinNumber + dialerLineOffset, dialer.Dial);
-				trilist.SetStringSigAction(joinMap.DialString.JoinNumber + dialerLineOffset, dialer.Dial);
-
 				dialer.DialStringFeedback.LinkInputSig(trilist.StringInput[joinMap.DialString.JoinNumber + dialerLineOffset]);
 
 				// do not disturb controls
