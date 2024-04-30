@@ -323,14 +323,13 @@ namespace ConvergePro2DspPlugin
 
 		private void LinkDialersToApi(BasicTriList trilist, ConvergePro2DspJoinMap joinMap)
 		{
-
 			// VoIP Dialer
 			uint lineOffset = 0;
 			foreach (var line in Dialers)
 			{
 				var dialer = line.Value;
 				var dialerLineOffset = lineOffset;
-				Debug.Console(_debugTrace, "AddingDialerBridge {0}, Offset: {1}", dialer.Key, dialerLineOffset);
+				Debug.Console(_debugTrace, this, "AddingDialerBridge {0}, Offset: {1}", dialer.Key, dialerLineOffset);
 
 				// dialer label
 				trilist.SetString(joinMap.Label.JoinNumber, dialer.Label);
@@ -367,7 +366,7 @@ namespace ConvergePro2DspPlugin
 				dialer.OffHookFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.OnHook.JoinNumber + dialerLineOffset]);
 
 				// dial string
-				trilist.SetStringSigAction(joinMap.DialString.JoinNumber + dialerLineOffset, dialer.Dial);
+				trilist.SetStringSigAction(joinMap.DialString.JoinNumber + dialerLineOffset, dialer.Dial);				
 				dialer.DialStringFeedback.LinkInputSig(trilist.StringInput[joinMap.DialString.JoinNumber + dialerLineOffset]);
 
 				// do not disturb controls

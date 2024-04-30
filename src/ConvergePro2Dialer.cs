@@ -184,7 +184,7 @@ namespace ConvergePro2DspPlugin
 			{
 				_incomingCall = value;
 				Debug.Console(2, this, ">>>> IncomingCall: {0}", _incomingCall);
-				IncomingCallFeedback.FireUpdate();				
+				IncomingCallFeedback.FireUpdate();
 			}
 		}
 
@@ -382,7 +382,7 @@ namespace ConvergePro2DspPlugin
 			{
 				Debug.Console(2, this, "StateChangeHandler: response-'{0}'", response);
 				if (!response.Contains("INCOMING")) continue;
-				
+
 				Debug.Console(2, this, "StateChangeHandler: response '{0}' contains 'INCOMING'", response);
 				IncomingCallHandler(new[] { response });
 
@@ -435,7 +435,7 @@ namespace ConvergePro2DspPlugin
 
 			OffHook = onHook == false;
 		}
-		
+
 		public void ActivePartiesHandler(string[] responses)
 		{
 			if (responses == null || responses.Length == 0) return;
@@ -681,18 +681,23 @@ namespace ConvergePro2DspPlugin
 		{
 			//IncomingCall = false;
 
-			if (string.IsNullOrEmpty(DialString))
-				return;
-
 			if (OffHook)
 			{
 				EndAllCalls();
 				return;
 			}
 
+			if (string.IsNullOrEmpty(DialString))
+			{
+				SetHookState(true);
+				return;
+			}
+
 			var cmd = IsVoipDialer
-				? string.Format("EP UA {0} KEY KEY_CALL {1}", ChannelName, DialString)
-				: string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, DialString);
+					? string.Format("EP UA {0} KEY KEY_CALL {1}", ChannelName, DialString)
+					: string.Format("EP {0} KEY KEY_CALL {1}", ChannelName, DialString);
+
+			if (string.IsNullOrEmpty(cmd)) return;
 
 			SendText(cmd);
 		}
@@ -742,11 +747,7 @@ namespace ConvergePro2DspPlugin
 		{
 			IncomingCall = false;
 
-			var cmd = IsVoipDialer
-				? string.Format("EP UA {0} KEY KEY_HOOK 0", ChannelName)
-				: string.Format("EP {0} KEY KEY_HOOK 0", ChannelName);
-
-			SendText(cmd);
+			SetHookState(false);
 		}
 
 		/// <summary>
@@ -756,11 +757,7 @@ namespace ConvergePro2DspPlugin
 		{
 			IncomingCall = false;
 
-			var cmd = IsVoipDialer
-				? string.Format("EP UA {0} KEY KEY_HOOK {1}", ChannelName, "0")
-				: string.Format("EP {0} KEY KEY_HOOK 0", ChannelName);
-
-			SendText(cmd);
+			SetHookState(false);
 		}
 
 		/// <summary>
@@ -770,11 +767,7 @@ namespace ConvergePro2DspPlugin
 		{
 			IncomingCall = false;
 
-			var cmd = IsVoipDialer
-				? string.Format("EP UA {0} KEY KEY_HOOK 1", ChannelName)
-				: string.Format("EP {0} KEY KEY_HOOK 1", ChannelName);
-
-			SendText(cmd);
+			SetHookState(true);
 		}
 
 		/// <summary>
@@ -785,11 +778,7 @@ namespace ConvergePro2DspPlugin
 		{
 			IncomingCall = false;
 
-			var cmd = IsVoipDialer
-				? string.Format("EP UA {0} KEY KEY_HOOK 1", ChannelName)
-				: string.Format("EP {0} KEY KEY_HOOK 1", ChannelName);
-
-			SendText(cmd);
+			SetHookState(true);
 		}
 
 		/// <summary>
@@ -824,7 +813,7 @@ namespace ConvergePro2DspPlugin
 		/// <summary>
 		/// Set dialer hook state
 		/// </summary>
-		/// <param name="state"></param>
+		/// <param name="state">false=onHook (0), true=offHook (1)</param>
 		public void SetHookState(bool state)
 		{
 			var hookState = state ? "1" : "0";
@@ -870,7 +859,7 @@ namespace ConvergePro2DspPlugin
 		{
 			var cmd = IsVoipDialer
 				//? string.Format("EP UA {0} INQUIRE ACTIVE_PARTIES", ChannelName)
-				? string.Format("EP UA {0} INQUIRE AcTIVE_PARTIES", ChannelName)
+				? string.Format("EP UA {0} INQUIRE ACTIVE_PARTIES", ChannelName)
 				: string.Format("EP {0} INQUIRE HOOK", ChannelName);
 
 			SendText(cmd);
