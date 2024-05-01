@@ -236,8 +236,10 @@ namespace ConvergePro2DspPlugin
 
 				trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
 				IsOnlineFeedback.FireUpdate();
-				CommMonitorFeedback.FireUpdate();
-				SocketStatusFeedback.FireUpdate();
+				if (CommMonitorFeedback != null) 
+					CommMonitorFeedback.FireUpdate();
+				if (SocketStatusFeedback != null)
+					SocketStatusFeedback.FireUpdate();
 			};
 		}
 
@@ -252,8 +254,11 @@ namespace ConvergePro2DspPlugin
 
 				var key = LevelControlPoints.ElementAt(index).Key;
 				var channel = LevelControlPoints.ElementAt(index).Value;
-				Debug.Console(_debugVerbose, this, @"LinkPresetsToApi: channel == null... continuing.");
-				if (channel == null) continue;
+				if (channel == null)
+				{
+					Debug.Console(_debugVerbose, this, "LinkPresetsToApi: channel == null... continuing."); 
+					continue;
+				}
 
 				if (channel.Enabled == false) continue;
 
@@ -279,17 +284,7 @@ namespace ConvergePro2DspPlugin
 				var muteOnJoin = joinMap.ChannelMuteOn.JoinNumber + (ushort)index;
 				var muteOffJoin = joinMap.ChannelMuteOff.JoinNumber + (ushort)index;
 
-				Debug.Console(_debugVerbose, this, @"LinkLevelControlToApi: 
-	{0}-'{1}' 
-	nameJoin-'{2}', 
-	typeJoin-'{3}', 
-	visibleJoin-'{4}', 
-	volumeSetJoin-'{5}', 
-	volumeUpJoin-'{6}', 
-	volumeDownJoin-'{7}', 
-	muteToggleJoin-'{8}', 
-	muteOnJoin-'{9}', 
-	muteOffJoin-'{10}'",
+				Debug.Console(_debugVerbose, this, "LinkLevelControlToApi:  {0}-'{1}'; nameJoin-'{2}'; typeJoin-'{3}'; visibleJoin-'{4}'; volumeSetJoin-'{5}'; volumeUpJoin-'{6}'; volumeDownJoin-'{7}'; muteToggleJoin-'{8}'; muteOnJoin-'{9}'; muteOffJoin-'{10}'",
 					key, channel.Label, nameJoin, typeJoin, visibleJoin, volumeSetJoin, volumeUpJoin, volumeDownJoin, muteToggleJoin, muteOnJoin, muteOffJoin);
 
 				trilist.SetSigTrueAction(muteToggleJoin, channelWithFeedback.MuteToggle);
@@ -333,7 +328,7 @@ namespace ConvergePro2DspPlugin
 		private void LinkPresetsToApi(BasicTriList trilist, ConvergePro2DspJoinMap joinMap)
 		{
 			var maxPresets = Presets.Count;
-			Debug.Console(_debugVerbose, this, @"LinkPresetsToApi: maxPresets-'{0}'", maxPresets);
+			Debug.Console(_debugVerbose, this, "LinkPresetsToApi: maxPresets-'{0}'", maxPresets);
 
 			if (maxPresets > joinMap.PresetRecall.JoinSpan) maxPresets = (int)joinMap.PresetRecall.JoinSpan;
 
@@ -346,22 +341,22 @@ namespace ConvergePro2DspPlugin
 
 				var presetKey = Presets.ElementAt(index).Key;
 				var preset = Presets.ElementAt(index).Value;
-				Debug.Console(_debugVerbose, this, @"LinkPresetsToApi: preset == null... continuing.");
-				if (preset == null) continue;
+				if (preset == null)
+				{
+					Debug.Console(_debugVerbose, this, "LinkPresetsToApi: preset == null... continuing."); 
+					continue;
+				}
 
 				var nameJoin = joinMap.PresetName.JoinNumber + (ushort)index;
 				var presetRecallJoin = joinMap.PresetRecall.JoinNumber + (ushort)index;
 
-				Debug.Console(_debugVerbose, this, @"LinkPresetsToApi:
-	{0}-'{1}'
-	nameJoin-'{2}'
-	presetRecallJoin-{3}",
+				Debug.Console(_debugVerbose, this, "LinkPresetsToApi: {0}-'{1}'; nameJoin-'{2}'; presetRecallJoin-{3}",
 					presetKey, preset.Label, nameJoin, presetRecallJoin);
 
 				trilist.SetString(nameJoin, preset.Label);
 				trilist.SetSigTrueAction(presetRecallJoin, () =>
 				{
-					Debug.Console(_debugVerbose, this, @"LinkPresetsToApi: trilist.SetSigTrueAction(presetRecallJoin) => {0} {1}",
+					Debug.Console(_debugVerbose, this, "LinkPresetsToApi: trilist.SetSigTrueAction(presetRecallJoin) => {0} {1}",
 						preset.Label, preset.Preset);
 					RunPreset(preset);
 				});
@@ -393,7 +388,8 @@ namespace ConvergePro2DspPlugin
 			{
 				var dialer = line.Value;
 				var dialerLineOffset = lineOffset;
-				Debug.Console(_debugTrace, this, "AddingDialerBridge {0}, Offset: {1}", dialer.Key, dialerLineOffset);
+				Debug.Console(_debugTrace, this, "LinkDialersToApi: dialer.Key-'{0}';  dialer.ChannelName-'{1}'; dialerLineOffset-'{2}'", 
+					dialer.Key, dialer.ChannelName, dialerLineOffset);
 
 				// dialer label
 				trilist.SetString(joinMap.Label.JoinNumber, dialer.Label);
@@ -933,7 +929,7 @@ namespace ConvergePro2DspPlugin
 		/// <param name="preset">Preset Name</param>
 		public void RunPresetByString(string preset)
 		{
-			SendText(string.Format("MCCF {1}", preset));
+			SendText(string.Format("MCCF {0}", preset));
 		}
 
 		#region DebugLevels
