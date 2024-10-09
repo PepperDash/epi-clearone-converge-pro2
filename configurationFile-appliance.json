@@ -53,84 +53,19 @@
 					},
 					"boxName": "DSP1",
 					"levelControlBlocks": {
-						"fader1": {                            
-							"label": "Room",
-							"channelName": "ROOM",
-							"endpointType": "PROC",
-							"endpointNumber": "101",
-							"blockNumber": "LEVEL",
-							"disabled": false,
-                            "hasLevel": true,
-                            "hasMute": true,
-                            "isMic": false
-                        },
-						"fader2": {                            
-							"label": "Program",
-							"channelName": "PGM",
-							"endpointType": "PROC",
-							"endpointNumber": "102",
-							"blockNumber": "LEVEL",
-							"disabled": false,
-                            "hasLevel": true,
-                            "hasMute": true,
-                            "isMic": false
-                        },
-						"fader3": {                            
-							"label": "Mic 1",
-							"channelName": "MIC1",
-							"endpointType": "MIC",
-							"endpointNumber": "103",
-							"blockNumber": "LEVEL",
-							"disabled": false,
-                            "hasLevel": true,
-                            "hasMute": true,
-                            "isMic": false
-                        },
-						"fader4": {                            
-							"label": "VoIP Call",
-							"channelName": "CALL_VRX",
-							"endpointType": "VOIP_RX",
-							"endpointNumber": "201",
-							"blockNumber": "LEVEL",
-							"disabled": false,
-                            "hasLevel": true,
-                            "hasMute": true,
-                            "isMic": false
-                        },
-						"fader5": {                            
-							"label": "Phone Call",
-							"channelName": "CALL_TRX",
-							"endpointType": "TELCO_RX",
-							"endpointNumber": "202",
-							"blockNumber": "LEVEL",
-							"disabled": false,
-                            "hasLevel": true,
-                            "hasMute": true,
-                            "isMic": false
-                        }
+						"fader-main"    : { "label": "Room"    , "channelName": "SPKR_ZN_1"    , "blockName": "LEVEL", "levelParameter": "GAIN", "muteParameter": "MUTE", "disabled": false, "hasLevel": true , "hasMute": true, "isMic": false, "useAbsoluteValue": false, "unmuteOnVolChange": true  },
+						"fader-call"    : { "label": "Program" , "channelName": "VOIP_1_TX"    , "blockName": "LEVEL", "levelParameter": "GAIN", "muteParameter": "MUTE", "disabled": false, "hasLevel": true , "hasMute": true, "isMic": false, "useAbsoluteValue": false, "unmuteOnVolChange": true  },
+						"fader-source"  : { "label": "Speech"  , "channelName": "PROG_PROCESS" , "blockName": "LEVEL", "levelParameter": "GAIN", "muteParameter": "MUTE", "disabled": false, "hasLevel": true , "hasMute": true, "isMic": false, "useAbsoluteValue": false, "unmuteOnVolChange": true  },
+						"fader-privacy" : { "label": ""        , "channelName": "MIC_PROCESS"  , "blockName": "LEVEL", "levelParameter": "GAIN", "muteParameter": "MUTE", "disabled": false, "hasLevel": false, "hasMute": true, "isMic": true , "useAbsoluteValue": false, "unmuteOnVolChange": false }
 					},
 					"presets": {
-						"preset1": {
-							"label": "System On",
-							"preset": "1"
-						},
-						"preset2": {
-							"label": "System Off",
-							"preset": "2"
-						},
-						"preset3": {
-							"label": "Default Levels",
-							"preset": "3"
-						}
+						"preset1": { "label": "System On"     , "preset": "1" },
+						"preset2": { "label": "System Off"    , "preset": "2" },
+						"preset3": { "label": "Default Levels", "preset": "3" }
 					},
 					"dialers": {
-						"dialer1": {
-							"label": "Dialer 1",
-							"channelName": "DIALER1",
-							"endpointType": "TELCO_RX",
-							"endpointNumber": "101",
-							"clearOnHangup": true
-						}
+						"dialer1": { "label": "Dialer 1", "channelName": "101", "isVoip": true, "clearOnHangup": true },
+						"dialer2": { "label": "Dialer 2", "channelName": "201", "isVoip": true, "clearOnHangup": true }
 					}
 				}
 			},
@@ -141,19 +76,9 @@
 				"group": "api",
 				"type": "eiscApiAdvanced",
 				"properties": {
-					"control": {
-						"method": "ipidTcp",
-						"tcpSshProperties": {
-							"address": "127.0.0.2",
-							"port": 0
-						},
-						"ipid": "B0"
-					},
+					"control": { "method": "ipidTcp", "tcpSshProperties": { "address": "127.0.0.2", "port": 0 }, "ipid": "a2" }, 
 					"devices": [
-						{
-							"deviceKey": "dsp1",
-							"joinStart": 1
-						}
+						{ "deviceKey": "dsp1", "joinStart": 1 }
 					]
 				}
 			}

@@ -1,4 +1,4 @@
-Crosspoint listing for C:\_pdt-github\PD\epi-dsp-clearone-converge-pro2\simplExample\DSP - Essentials Plugin Example-VC4.SMW
+Crosspoint listing for C:\_pdt-github\PD\epi-dsp-clearone-convergePro2\simplExample\DSP - Essentials Plugin Example-VC4.SMW
 
 Note:  Crosspoint symbols with EquipID or ControlID set to 0d are not routeable.
 

@@ -246,12 +246,22 @@ namespace ConvergePro2DspPlugin
 				JoinType = eJoinType.Digital
 			});
 
-		[JoinName("Answer")]
-		public JoinDataComplete Answer =
-			new JoinDataComplete(new JoinData { JoinNumber = 3106, JoinSpan = 1 },
+		[JoinName("IncomingCallAnswer")]
+		public JoinDataComplete IncomingCallAnswer =
+			new JoinDataComplete(new JoinData { JoinNumber = 3136, JoinSpan = 1 },
 			new JoinMetadata
 			{
 				Description = "Answer Incoming Call",
+				JoinCapabilities = eJoinCapabilities.FromSIMPL,
+				JoinType = eJoinType.Digital
+			});
+
+		[JoinName("IncomingCallReject")]
+		public JoinDataComplete IncomingCallReject =
+			new JoinDataComplete(new JoinData { JoinNumber = 3137, JoinSpan = 1 },
+			new JoinMetadata
+			{
+				Description = "Reject Incoming Call",
 				JoinCapabilities = eJoinCapabilities.FromSIMPL,
 				JoinType = eJoinType.Digital
 			});
