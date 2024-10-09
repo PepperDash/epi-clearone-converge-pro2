@@ -250,7 +250,7 @@ namespace ConvergePro2DspPlugin
 		// => EP UA 101 NOTIFICATION INDICATION PL 1;PARY_LINE:OFF		
 		private readonly List<string> _incomingCallValues = new List<string>
 		{
-			"INCOMING",
+			"INCOMING:",
             "PARTY_LINE:BLINK"            
 		};
 
@@ -381,10 +381,11 @@ namespace ConvergePro2DspPlugin
 			foreach (var response in responses)
 			{
 				Debug.Console(2, this, "StateChangeHandler: response-'{0}'", response);
-				if (!response.Contains("INCOMING")) continue;
+				if (!response.Contains("INCOMING:")) continue;
 
-				Debug.Console(2, this, "StateChangeHandler: response '{0}' contains 'INCOMING'", response);
-				IncomingCallHandler(new[] { response });
+				Debug.Console(2, this, "StateChangeHandler: response '{0}' contains 'INCOMING:'", response);
+				//IncomingCallHandler(new[] { response });
+				ProcessCallerIdData(response);
 
 				return;
 			}
@@ -403,6 +404,24 @@ namespace ConvergePro2DspPlugin
 			Debug.Console(2, this, "StateChangeHandler: _onHookValues match-{0}", onHook);
 
 			OffHook = onHook == false;
+		}
+
+		private void ProcessCallerIdData(string response)
+		{
+			Debug.Console(2, this, "ProcessCallerIdData: response-'{0}'", response);
+			
+			// ProcessResponse: '=> EP UA 101 NOTIFICATION STATE_CHANGE PL 1;INCOMING:1000 <sip:1000@192.168.15.41> '
+			// StateChangeHandler: response-'PL 1'
+			// StateChangeHandler: response-'INCOMING:1000 <sip:1000@192.168.15.41>'
+			var numberData = response.Split(' ');
+			var number = (numberData.Length >= 1 && numberData[0].Contains(':')) 
+				? numberData[0].Split(':')[1] 
+				: string.Empty;
+
+			CallerIdNumber = number;
+			IncomingCall = true;
+
+			Debug.Console(2, this, "ProcessCallerIdData: number-'{0}'", number);
 		}
 
 		public void IndicationHandler(string[] responses)
@@ -481,6 +500,7 @@ namespace ConvergePro2DspPlugin
 				Debug.Console(2, this, "IncomingCallHandler: s-'{0}'", s);
 				var state = _incomingCallValues.Where(s.Contains).Any();
 				Debug.Console(2, this, "IncomingCallHandler: state is '{0}'", state);
+
 				return state;
 			});
 

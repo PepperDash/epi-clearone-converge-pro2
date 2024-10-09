@@ -793,11 +793,12 @@ namespace ConvergePro2DspPlugin
 									foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 									{
 										var responses = value.Split(';');
-										if (responses.Any(r => r.ToUpper().Contains("INCOMING")))
-										{
-											dialer.Value.IncomingCallHandler(responses);
-											return;
-										}
+										
+										//if (responses.Any(r => r.ToUpper().Contains("INCOMING")))
+										//{
+										//    dialer.Value.IncomingCallHandler(responses);
+										//    return;
+										//}
 
 										dialer.Value.ActivePartiesHandler(responses);
 
@@ -810,11 +811,12 @@ namespace ConvergePro2DspPlugin
 										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 										{
 											var responses = value.Split(';');
-											if (responses.Any(r => r.ToUpper().Contains("INCOMING")))
-											{
-												dialer.Value.IncomingCallHandler(responses);
-												return;
-											}
+											
+											//if (responses.Any(r => r.ToUpper().Contains("INCOMING")))
+											//{
+											//    dialer.Value.IncomingCallHandler(responses);
+											//    return;
+											//}
 
 											dialer.Value.IndicationHandler(responses);
 
@@ -828,11 +830,12 @@ namespace ConvergePro2DspPlugin
 										foreach (var dialer in Dialers.Where(dialer => channelName == dialer.Value.ChannelName))
 										{
 											var responses = value.Split(';');
-											if (responses.Any(r => r.ToUpper().Contains("INCOMING")))
-											{
-												dialer.Value.IncomingCallHandler(responses);
-												return;
-											}
+											
+											//if (responses.Any(r => r.ToUpper().Contains("INCOMING")))
+											//{
+											//    dialer.Value.IncomingCallHandler(responses);
+											//    return;
+											//}
 
 											dialer.Value.StateChangeHandler(responses);
 
